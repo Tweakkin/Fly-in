@@ -13,6 +13,9 @@ class Zone:
         self.type: str = zone_type
         self.color: Union[str, None] = color
         self.max_drones: int = max_drones
+    
+    def __repr__(self) -> str:
+        return f"{self.name}(type={self.type}, max={self.max_drones})"
 
 
 class Connection:
@@ -25,6 +28,9 @@ class Connection:
         self.zone_1: str = name1
         self.zone_2: str = name2
         self.max_capacity: int = max_capacity
+    
+    def __repr__(self) -> str:
+        return f"{self.zone_1}-{self.zone_2}(cap={self.max_capacity})"
 
 class Graph:
     """
@@ -36,6 +42,9 @@ class Graph:
     def __init__(self) -> None:
         self.zone_dict: dict[str, Zone] = {}
         self.connection_dict: dict[str, list[Connection]] = {}
+        self.nb_drones: int = 0
+        self.start_hub: Optional[Zone] = None
+        self.end_hub: Optional[Zone] = None
 
     def add_zone(self, zone_object: Zone) -> None:
         self.zone_dict[zone_object.name] = zone_object
