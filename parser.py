@@ -125,54 +125,50 @@ class Parser:
         tokens: list = metadata.split()
         data_dict: dict = {}
         valid_zones: List[str] = ["normal", "blocked", "restricted", "priority"]
-        try:
-            if category == "zone":
-                data_dict["zone"] = "normal"
-                data_dict["color"] = None
-                data_dict["max_drones"] = 1
-                for data in tokens:
-                    data = data.strip()
-                    data = data.split('=')
-                    if data[0] == "zone" and len(data) == 2:
-                        if data[1] in valid_zones:
-                            data_dict["zone"] = data[1]
-                        else:
-                            raise ValueError(f"Line {line_number}: Invalid Zone type!")
-                    elif data[0] == "color" and len(data) == 2:
-                        data_dict["color"] = str(data[1])
-                    elif data[0] == "max_drones" and len(data) == 2:
-                        try:
-                            drones_max = int(data[1])
-                        except ValueError:
-                            raise ValueError(f"Line {line_number}: 'max_drones' must be an integer")
-                        if drones_max > 0:
-                            data_dict["max_drones"] = drones_max
-                        else:
-                            raise ValueError(f"Line {line_number}: 'max_drones' should be > 0 !")
+        if category == "zone":
+            data_dict["zone"] = "normal"
+            data_dict["color"] = None
+            data_dict["max_drones"] = 1
+            for data in tokens:
+                data = data.strip()
+                data = data.split('=')
+                if data[0] == "zone" and len(data) == 2:
+                    if data[1] in valid_zones:
+                        data_dict["zone"] = data[1]
                     else:
-                        raise ValueError(f"Line {line_number}: {data[0]} isn't a valid metadata block")
-            
-            elif category == "connection":
-                data_dict["max_link_capacity"] = 1
-                for data in tokens:
-                    data = data.strip()
-                    data = data.split('=')
-                    if data[0] == "max_link_capacity" and len(data) == 2:
-                        try:
-                            drones_max = int(data[1])
-                        except ValueError:
-                            raise ValueError(f"Line {line_number}: 'max_link_capacity' must be an integer")
-                        if drones_max > 0:
-                            data_dict["max_link_capacity"] = drones_max
-                        else:
-                            raise ValueError(f"Line {line_number}: 'max_link_capacity' should be > 0 !")
+                        raise ValueError(f"Line {line_number}: Invalid Zone type!")
+                elif data[0] == "color" and len(data) == 2:
+                    data_dict["color"] = str(data[1])
+                elif data[0] == "max_drones" and len(data) == 2:
+                    try:
+                        drones_max = int(data[1])
+                    except ValueError:
+                        raise ValueError(f"Line {line_number}: 'max_drones' must be an integer")
+                    if drones_max > 0:
+                        data_dict["max_drones"] = drones_max
                     else:
-                        raise ValueError(f"Line {line_number}: {data[0]} isn't a valid metadata block")
-            else:
-                raise ValueError(f"Line {line_number}: Unknown category: {category}")
-        except ValueError as e:
-            print(f"Parsing Error: Line {line_number}: {e}")
-            sys.exit(1)
+                        raise ValueError(f"Line {line_number}: 'max_drones' should be > 0 !")
+                else:
+                    raise ValueError(f"Line {line_number}: {data[0]} isn't a valid metadata block")
+        
+        elif category == "connection":
+            data_dict["max_link_capacity"] = 1
+            for data in tokens:
+                data = data.strip()
+                data = data.split('=')
+                if data[0] == "max_link_capacity" and len(data) == 2:
+                    try:
+                        drones_max = int(data[1])
+                    except ValueError:
+                        raise ValueError(f"Line {line_number}: 'max_link_capacity' must be an integer")
+                    if drones_max > 0:
+                        data_dict["max_link_capacity"] = drones_max
+                    else:
+                        raise ValueError(f"Line {line_number}: 'max_link_capacity' should be > 0 !")
+                else:
+                    raise ValueError(f"Line {line_number}: {data[0]} isn't a valid metadata block" )
+        else:
+            raise ValueError(f"Line {line_number}: Unknown category: {category}")
         return data_dict
 
 
@@ -186,8 +182,8 @@ if __name__ == "__main__":
     parser = Parser()
     parser.parse_file(sys.argv[1])
 
-    print(f"nb_drones: {parser.graph.nb_drones}")
-    print(f"start_hub: {parser.graph.start_hub}")
-    print(f"end_hub: {parser.graph.end_hub}")
-    print(f"zones: {parser.graph.zone_dict}")
-    print(f"connections: {parser.graph.connection_dict}")
+    print(f"nb_drones: {parser.graph.nb_drones}\n")
+    print(f"start_hub: {parser.graph.start_hub}\n")
+    print(f"end_hub: {parser.graph.end_hub}\n")
+    print(f"zones: {parser.graph.zone_dict}\n")
+    print(f"connections: {parser.graph.connection_dict}\n")

@@ -17,7 +17,6 @@ class Zone:
     def __repr__(self) -> str:
         return f"{self.name}(type={self.type}, max={self.max_drones})"
 
-
 class Connection:
     """
     Represents a road between two Zones. 
@@ -57,3 +56,20 @@ class Graph:
             
         self.connection_dict[connection_object.zone_1].append(connection_object)
         self.connection_dict[connection_object.zone_2].append(connection_object)
+
+
+class Drone:
+    """
+    Represents a single drone in the simulation.
+    Tracks its id, current zone, and in-transit state
+    when crossing a restricted zone over multiple turns.
+    """
+    def __init__(self, drone_id: int, current_zone: Zone, in_trans: Optional[Connection] = None,
+                    turns_remaining: int = 0) -> None:
+        self.drone_id: int = drone_id
+        self.current_zone: Zone = current_zone
+        self.in_trans: Optional[Connection] = in_trans
+        self.turns_remaining: int = turns_remaining
+    
+    def __repr__(self) -> str:
+        return f"Drone({self.drone_id}, {self.current_zone})"
