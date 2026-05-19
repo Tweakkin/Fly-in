@@ -1,3 +1,4 @@
+from simulation import Simulation
 from models import Graph, Zone, Connection
 from typing import Dict, List, Any
 import sys
@@ -182,4 +183,15 @@ if __name__ == "__main__":
     parser = Parser()
     parser.parse_file(sys.argv[1])
 
-    print(parser.graph.bfs_shortest_path("base", "landing"))
+    sim = Simulation(parser.graph)
+    print(f"Before Creating Drones: {sim.drones}")
+    sim.create_drones()
+
+    print(f"After Creating Drones: {sim.drones}")
+
+    print("===================================\n")
+    print("running...")
+    sim.run()
+
+
+    #print(parser.graph.bfs_shortest_path("base", "landing"))

@@ -58,7 +58,7 @@ class Graph:
         self.connection_dict[connection_object.zone_2].append(connection_object)
 
 
-    def bfs_shortest_path(self, start_zone: str, end_zone: str):
+    def bfs_shortest_path(self, start_zone: str, end_zone: str) -> Optional[list[str]]:
         """
         Finds the shortest path between two zones using Breadth-First Search.
         How it works:
@@ -93,38 +93,6 @@ class Graph:
                     new_path = list(curr_path)
                     new_path.append(neighbor)
                     queue.append(new_path)
-
-        # Create a while loop that runs as long as the queue is not empty:
-        
-            
-            # Step 1: Pull the first item out
-            # pop index 0 from the queue and store it in a variable called 'current_path'
-            
-            
-            # Get the very last zone in current_path and store it in 'current_zone'
-            
-            
-            # Step 2: Did we reach the end?
-            # If current_zone is equal to end_zone_name:
-            #     return current_path
-            
-            
-            # Step 3: Where can we go next?
-            # Loop through all the connections for current_zone.
-            # (Hint: use self.connection_dict.get(current_zone, []))
-            
-                
-                # Figure out the name of the neighbor from the connection
-                
-                
-                # If this neighbor is NOT in our visited set:
-                
-                    # Add neighbor to visited
-                    
-                    # Create a new clone path: make a copy of current_path, and append the neighbor
-                    
-                    # Put this new clone path at the back of the queue (using append)
-        # If the while loop finishes and we never hit the end, return None (no path exists)
         return None
 
 class Drone:
@@ -139,6 +107,8 @@ class Drone:
         self.current_zone: Zone = current_zone
         self.in_trans: Optional[Connection] = in_trans
         self.turns_remaining: int = turns_remaining
+        self.path: list[str] = []
+        self.path_index: int = 0
     
     def __repr__(self) -> str:
         return f"Drone({self.drone_id}, {self.current_zone})"
