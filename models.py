@@ -13,6 +13,7 @@ class Zone:
         self.type: str = zone_type
         self.color: Union[str, None] = color
         self.max_drones: int = max_drones
+        self.curr_drones: int = 0
     
     def __repr__(self) -> str:
         return f"{self.name}(type={self.type}, max={self.max_drones})"
