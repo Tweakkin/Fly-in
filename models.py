@@ -58,6 +58,75 @@ class Graph:
         self.connection_dict[connection_object.zone_2].append(connection_object)
 
 
+    def bfs_shortest_path(self, start_zone: str, end_zone: str):
+        """
+        Finds the shortest path between two zones using Breadth-First Search.
+        How it works:
+        1. Starts with a queue containing one path: just the start_zone.
+        2. Pulls the first path from the queue and checks its last zone.
+        3. If that zone is the destination, returns the path immediately.
+        4. Otherwise, looks up all connections from that zone, finds each
+           neighbor, and creates a new path (a copy + the neighbor) for
+           each unvisited neighbor. Adds those new paths to the back of
+           the queue.
+        5. Repeats until the destination is found or the queue is empty.
+        Returns the path as a list of zone name strings, or None if
+        no path exists.
+        """
+        queue: list[list] = [[start_zone]]
+        visited: set[str] = {start_zone}                
+        
+        while queue:
+            curr_path = queue.pop(0)
+            curr_zone = curr_path[-1]
+            if curr_zone == end_zone:
+                return curr_path
+            curr_connections = self.connection_dict.get(curr_zone, [])
+            for connec in curr_connections:
+                if connec.zone_1 == curr_zone:
+                    neighbor = connec.zone_2
+                else:
+                    neighbor = connec.zone_1
+                
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    new_path = list(curr_path)
+                    new_path.append(neighbor)
+                    queue.append(new_path)
+
+        # Create a while loop that runs as long as the queue is not empty:
+        
+            
+            # Step 1: Pull the first item out
+            # pop index 0 from the queue and store it in a variable called 'current_path'
+            
+            
+            # Get the very last zone in current_path and store it in 'current_zone'
+            
+            
+            # Step 2: Did we reach the end?
+            # If current_zone is equal to end_zone_name:
+            #     return current_path
+            
+            
+            # Step 3: Where can we go next?
+            # Loop through all the connections for current_zone.
+            # (Hint: use self.connection_dict.get(current_zone, []))
+            
+                
+                # Figure out the name of the neighbor from the connection
+                
+                
+                # If this neighbor is NOT in our visited set:
+                
+                    # Add neighbor to visited
+                    
+                    # Create a new clone path: make a copy of current_path, and append the neighbor
+                    
+                    # Put this new clone path at the back of the queue (using append)
+        # If the while loop finishes and we never hit the end, return None (no path exists)
+        return None
+
 class Drone:
     """
     Represents a single drone in the simulation.

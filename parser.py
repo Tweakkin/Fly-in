@@ -182,8 +182,4 @@ if __name__ == "__main__":
     parser = Parser()
     parser.parse_file(sys.argv[1])
 
-    print(f"nb_drones: {parser.graph.nb_drones}\n")
-    print(f"start_hub: {parser.graph.start_hub}\n")
-    print(f"end_hub: {parser.graph.end_hub}\n")
-    print(f"zones: {parser.graph.zone_dict}\n")
-    print(f"connections: {parser.graph.connection_dict}\n")
+    print(parser.graph.bfs_shortest_path("base", "landing"))
