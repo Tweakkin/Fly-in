@@ -88,13 +88,64 @@ class Graph:
                     neighbor = connec.zone_2
                 else:
                     neighbor = connec.zone_1
-                
+
+                neighbor_zone = self.zone_dict[neighbor]
+                if neighbor_zone.type == "blocked":
+                    continue
+
                 if neighbor not in visited:
                     visited.add(neighbor)
                     new_path = list(curr_path)
                     new_path.append(neighbor)
                     queue.append(new_path)
         return None
+
+    def weighted_shortest_path(
+        self,
+        start_zone: str,
+        end_zone: str
+    ) -> Optional[list[str]]:
+        queue: list[tuple[int, list[str]]] = [(0, [start_zone])]
+        best_costs: dict[str, int] = {start_zone: 0}
+
+        while queue:
+            queue.sort(key=lambda item: item[0])
+            curr_cost, curr_path = queue.pop(0)
+            curr_zone = curr_path[-1]
+
+            if curr_zone == end_zone:
+                return curr_path
+
+            curr_connections = self.connection_dict.get(curr_zone, [])
+
+            for connec in curr_connections:
+                if connec.zone_1 == curr_zone:
+                    neighbor = connec.zone_2
+                else:
+                    neighbor = connec.zone_1
+
+                neighbor_zone = self.zone_dict[neighbor]
+                if neighbor_zone.type == "blocked":
+                    continue
+
+                new_cost = curr_cost + self.zone_cost(neighbor)
+
+                if neighbor not in best_costs or new_cost < best_costs[neighbor]:
+                    best_costs[neighbor] = new_cost
+
+                    new_path = list(curr_path)
+                    new_path.append(neighbor)
+
+                    queue.append((new_cost, new_path))
+
+        return None
+
+    def zone_cost(self, zone_name: str) -> int:
+        zone = self.zone_dict[zone_name]
+
+        if zone.type == "restricted":
+            return 2
+        return 1
 
 class Drone:
     """
@@ -106,7 +157,10 @@ class Drone:
                     turns_remaining: int = 0) -> None:
         self.drone_id: int = drone_id
         self.current_zone: Zone = current_zone
+
+        # Is this drone currently on a connection instead of inside a zone?
         self.in_trans: Optional[Connection] = in_trans
+
         self.turns_remaining: int = turns_remaining
         self.path: list[str] = []
         self.path_index: int = 0
