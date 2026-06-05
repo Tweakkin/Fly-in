@@ -1,3 +1,4 @@
+import contextlib
 from typing import Optional, Union
 
 class Zone:
@@ -103,8 +104,11 @@ class Graph:
     def weighted_shortest_path(
         self,
         start_zone: str,
-        end_zone: str
+        end_zone: str,
+        ignored_zones: Optional[set[str]] = None
     ) -> Optional[list[str]]:
+        if ignored_zones is None:
+            ignored_zones = set()
         queue: list[tuple[int, list[str]]] = [(0, [start_zone])]
         best_costs: dict[str, int] = {start_zone: 0}
 
@@ -123,6 +127,10 @@ class Graph:
                     neighbor = connec.zone_2
                 else:
                     neighbor = connec.zone_1
+                
+                if neighbor in ignored_zones:
+                    if (neighbor != start_zone) and (neighbor != end_zone):
+                        continue
 
                 neighbor_zone = self.zone_dict[neighbor]
                 if neighbor_zone.type == "blocked":
@@ -139,6 +147,19 @@ class Graph:
                     queue.append((new_cost, new_path))
 
         return None
+
+    def find_multiple_paths(self, start_zone: str, end_zone: str):
+        self.all_paths: Optional[list[list[str]]] = list()
+        ignored_zones: Optional[set[str]] = set()
+        while True:
+            new_path = self.weighted_shortest_path(start_zone, end_zone, ignored_zones)
+            if new_path == None:
+                break
+            for zone in new_path:
+                ignored_zones.add(zone)
+            self.all_paths.append(new_path)
+        print(f"These are the paths i found: {self.all_paths}")
+
 
     def zone_cost(self, zone_name: str) -> int:
         zone = self.zone_dict[zone_name]

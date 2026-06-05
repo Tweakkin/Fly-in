@@ -6,8 +6,9 @@ class Simulation:
         self.graph: Graph = graph
         self.drones: list[Drone] = []
         self.turns: int = 0
-        self.path: Optional[list[str]] = graph.weighted_shortest_path(graph.start_hub.name, graph.end_hub.name)
-        if self.path is None:
+        graph.find_multiple_paths(graph.start_hub.name, graph.end_hub.name)
+        self.all_paths = self.graph.all_paths
+        if self.all_paths is None:
             raise ValueError("No valid path exists between start and end!")
     
     def create_drones(self):
@@ -98,7 +99,7 @@ class Simulation:
                     drone.path_index += 1
                     drone.current_zone = self.graph.zone_dict[drone.path[drone.path_index]]
                     self.graph.zone_dict[drone.path[drone.path_index]].curr_drones += 1
-                    turn_movements.append(f"D{drone.drone_id}-{drone.current_zone.name}")
+                    turn_movements.append(f"<D{drone.drone_id}>-< {drone.current_zone.name}>")
 
             if all_arrived == True:
                 print(" ".join(turn_movements))
