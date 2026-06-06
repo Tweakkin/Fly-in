@@ -14,7 +14,6 @@ class Simulation:
     def create_drones(self):
         for i in range(self.graph.nb_drones):
             new_drone = Drone(i, self.graph.start_hub)
-            new_drone.path = self.path
             self.drones.append(new_drone)
 
 
@@ -49,6 +48,9 @@ class Simulation:
                         turn_movements.append(f"D{drone.drone_id}-{drone.current_zone.name}")
                     all_arrived = False
                     continue
+
+                if not drone.path:
+                    drone.path = min(self.all_paths, key=self.drones_in_path)
 
                 # Check if the Drone has reached the end hub
                 if (drone.path_index == len(drone.path) - 1):
@@ -99,12 +101,57 @@ class Simulation:
                     drone.path_index += 1
                     drone.current_zone = self.graph.zone_dict[drone.path[drone.path_index]]
                     self.graph.zone_dict[drone.path[drone.path_index]].curr_drones += 1
-                    turn_movements.append(f"<D{drone.drone_id}>-< {drone.current_zone.name}>")
+                    turn_movements.append(f"D{drone.drone_id}-{drone.current_zone.name}")
 
             if all_arrived == True:
                 print(" ".join(turn_movements))
                 print(f"Total turn {self.turns}")
-                print(f"Chosen path: {self.path}")
+                print(f"All paths: {self.all_paths}")
                 break
             else:
                 print(" ".join(turn_movements))
+    
+    def drones_in_path(self, path: list[str]) -> int:
+        num_using = 0
+        for drone in self.drones:
+            if (drone.path == path) and (len(drone.path) - 1 > drone.path_index):
+                num_using += 1
+        return (num_using * self.get_traffic_penalty(path)) + self.get_path_cost(path)
+
+    def get_path_cost(self, path: list[str]) -> int:
+        cost = 0
+
+        for zone_name in path[1:]:
+            cost += self.graph.zone_cost(zone_name)
+        return cost
+
+    def get_traffic_penalty(self, path: list[str]) -> float:
+        highest_penalty = 0.0
+        
+        # 1. Check zones
+        for zone_name in path[1:-1]:
+            zone = self.graph.zone_dict[zone_name]
+            
+            # Calculate the true penalty based on the zone's capacity
+            if zone.type == "restricted":
+                penalty = 2.0 / zone.max_drones
+            else:
+                penalty = 1.0 / zone.max_drones
+                
+            if penalty > highest_penalty:
+                highest_penalty = penalty
+                
+        # 2. Check connections
+        for i in range(len(path) - 1):
+            curr_zone = path[i]
+            next_zone = path[i+1]
+            
+            for conn in self.graph.connection_dict[curr_zone]:
+                if conn.zone_1 == next_zone or conn.zone_2 == next_zone:
+                    penalty = 1.0 / conn.max_capacity
+                    if penalty > highest_penalty:
+                        highest_penalty = penalty
+                    break
+                    
+        return highest_penalty if highest_penalty > 0 else 1.0
+

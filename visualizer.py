@@ -1,6 +1,7 @@
 import sys
 import io
 import re
+import math
 import tkinter as tk
 from parser import Parser
 from simulation import Simulation
@@ -131,10 +132,12 @@ def draw_graph(map_file):
             else:
                 cx, cy = scale_x(graph.start_hub.x), scale_y(graph.start_hub.y)
                 
-        # Offset drones slightly using their ID
+        # Offset drones in a circle around the zone center
         offset_idx = int(d_id_str)
-        ox = (offset_idx % 3) * 12 - 12
-        oy = (offset_idx // 3) * 12 - 12
+        radius = 15
+        angle = (2 * math.pi * offset_idx) / max(graph.nb_drones, 1)
+        ox = radius * math.cos(angle)
+        oy = radius * math.sin(angle)
         return cx + ox, cy + oy
 
     # Initialize drone visual items

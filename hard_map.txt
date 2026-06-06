@@ -1,18 +1,23 @@
-nb_drones: 3
+nb_drones: 30
 start_hub: base 0 0 [color=green]
 end_hub: landing 20 20 [color=yellow]
 hub: tower1 5 3 [zone=normal max_drones=2]
-hub: tower2 5 8 [zone=restricted color=red max_drones=1]
+hub: tower2 5 8 [zone=restricted color=red max_drones=3]
 hub: tower3 10 5 [zone=normal max_drones=3]
 hub: tower4 15 3 [zone=priority max_drones=2]
-hub: tower5 15 8 [zone=normal max_drones=1]
+hub: tower5 15 8 [zone=normal max_drones=2]
+hub: tower6 5 10 [zone=normal max_drones=1]
+hub: tower7 15 12 [zone=restricted max_drones=1]
 hub: deadend 3 10 [zone=blocked max_drones=1]
+connection: base-tower6
+connection: tower6-tower7
+connection: tower7-landing
 connection: base-tower1
-connection: base-tower2
+connection: base-tower2 [max_link_capacity=3]
 connection: base-deadend
 connection: tower1-tower3
 connection: tower2-tower3
-connection: tower2-tower5
+connection: tower2-tower5 [max_link_capacity=2]
 connection: tower3-tower4
 connection: tower3-tower5
 connection: tower4-landing [max_link_capacity=2]
