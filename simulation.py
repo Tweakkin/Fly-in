@@ -49,7 +49,9 @@ class Simulation:
                     all_arrived = False
                     continue
 
-                if not drone.path:
+                # Re-evaluate path every turn while drone is still at start hub.
+                # Once it moves to its first zone (path_index > 0), it's committed.
+                if not drone.path or drone.path_index == 0:
                     drone.path = min(self.all_paths, key=self.drones_in_path)
 
                 # Check if the Drone has reached the end hub
@@ -126,32 +128,43 @@ class Simulation:
         return cost
 
     def get_traffic_penalty(self, path: list[str]) -> float:
-        highest_penalty = 0.0
-        
-        # 1. Check zones
+        """
+        Returns a number that represents how much capacity pressure ONE drone puts on this path.
+
+        For every zone and every connection on the path, we calculate:
+            turn_cost / max_capacity  →  "what fraction of this segment does one drone consume?"
+
+        A zone that fits 1 drone scores higher than one that fits 4, because one drone
+        fills it completely and forces every other drone to wait.
+        Restricted zones use 2.0 in the numerator (they cost 2 turns), normal zones use 1.0.
+
+        We SUM across the whole path (not max) because every constrained segment
+        adds real waiting time independently. A path with 7 medium-hard segments
+        can be worse than a path with 1 very hard segment + 5 easy ones.
+
+        This result is then multiplied by the number of drones already on the path
+        in drones_in_path(), so paths that are both congested AND have low capacity
+        grow their score fast and repel new drones toward emptier routes.
+        """
+        total_penalty = 0.0
+
+        # 1. Accumulate penalty across all middle zones
         for zone_name in path[1:-1]:
             zone = self.graph.zone_dict[zone_name]
-            
-            # Calculate the true penalty based on the zone's capacity
+
             if zone.type == "restricted":
-                penalty = 2.0 / zone.max_drones
+                total_penalty += 2.0 / zone.max_drones
             else:
-                penalty = 1.0 / zone.max_drones
-                
-            if penalty > highest_penalty:
-                highest_penalty = penalty
-                
-        # 2. Check connections
+                total_penalty += 1.0 / zone.max_drones
+
         for i in range(len(path) - 1):
             curr_zone = path[i]
-            next_zone = path[i+1]
-            
+            next_zone = path[i + 1]
+
             for conn in self.graph.connection_dict[curr_zone]:
                 if conn.zone_1 == next_zone or conn.zone_2 == next_zone:
-                    penalty = 1.0 / conn.max_capacity
-                    if penalty > highest_penalty:
-                        highest_penalty = penalty
+                    total_penalty += 1.0 / conn.max_capacity
                     break
-                    
-        return highest_penalty if highest_penalty > 0 else 1.0
+
+        return total_penalty
 
