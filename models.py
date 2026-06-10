@@ -101,14 +101,66 @@ class Graph:
                     queue.append(new_path)
         return None
 
+    # def weighted_shortest_path(
+    #     self,
+    #     start_zone: str,
+    #     end_zone: str,
+    #     ignored_zones: Optional[set[str]] = None
+    # ) -> Optional[list[str]]:
+    #     if ignored_zones is None:
+    #         ignored_zones = set()
+    #     queue: list[tuple[int, list[str]]] = [(0, [start_zone])]
+    #     best_costs: dict[str, int] = {start_zone: 0}
+    #
+    #     while queue:
+    #         queue.sort(key=lambda item: item[0])
+    #         curr_cost, curr_path = queue.pop(0)
+    #         curr_zone = curr_path[-1]
+    #
+    #         if curr_zone == end_zone:
+    #             return curr_path
+    #
+    #         curr_connections = self.connection_dict.get(curr_zone, [])
+    #
+    #         for connec in curr_connections:
+    #             if connec.zone_1 == curr_zone:
+    #                 neighbor = connec.zone_2
+    #             else:
+    #                 neighbor = connec.zone_1
+    #
+    #             if neighbor in ignored_zones:
+    #                 if (neighbor != start_zone) and (neighbor != end_zone):
+    #                     continue
+    #
+    #             neighbor_zone = self.zone_dict[neighbor]
+    #             if neighbor_zone.type == "blocked":
+    #                 continue
+    #
+    #             new_cost = curr_cost + self.zone_cost(neighbor)
+    #
+    #             if neighbor not in best_costs or new_cost < best_costs[neighbor]:
+    #                 best_costs[neighbor] = new_cost
+    #
+    #                 new_path = list(curr_path)
+    #                 new_path.append(neighbor)
+    #
+    #                 queue.append((new_cost, new_path))
+    #
+    #     return None
+
     def weighted_shortest_path(
         self,
         start_zone: str,
         end_zone: str,
-        ignored_zones: Optional[set[str]] = None
+        cost_overrides: Optional[dict[str, int]] = None
     ) -> Optional[list[str]]:
-        if ignored_zones is None:
-            ignored_zones = set()
+        """
+        Dijkstra shortest path with optional cost overrides.
+        cost_overrides: dict mapping zone_name -> custom cost.
+        If a zone is in cost_overrides, that cost is used instead of zone_cost().
+        """
+        if cost_overrides is None:
+            cost_overrides = {}
         queue: list[tuple[int, list[str]]] = [(0, [start_zone])]
         best_costs: dict[str, int] = {start_zone: 0}
 
@@ -127,37 +179,63 @@ class Graph:
                     neighbor = connec.zone_2
                 else:
                     neighbor = connec.zone_1
-                
-                if neighbor in ignored_zones:
-                    if (neighbor != start_zone) and (neighbor != end_zone):
-                        continue
 
                 neighbor_zone = self.zone_dict[neighbor]
                 if neighbor_zone.type == "blocked":
                     continue
 
-                new_cost = curr_cost + self.zone_cost(neighbor)
+                # Use override cost if available, otherwise normal cost
+                step_cost = cost_overrides.get(neighbor, self.zone_cost(neighbor))
+                new_cost = curr_cost + step_cost
 
                 if neighbor not in best_costs or new_cost < best_costs[neighbor]:
                     best_costs[neighbor] = new_cost
-
                     new_path = list(curr_path)
                     new_path.append(neighbor)
-
                     queue.append((new_cost, new_path))
 
         return None
 
+    # def find_multiple_paths(self, start_zone: str, end_zone: str):
+    #     self.all_paths: Optional[list[list[str]]] = list()
+    #     ignored_zones: Optional[set[str]] = set()
+    #     while True:
+    #         new_path = self.weighted_shortest_path(start_zone, end_zone, ignored_zones)
+    #         if new_path == None:
+    #             break
+    #         for zone in new_path:
+    #             ignored_zones.add(zone)
+    #         self.all_paths.append(new_path)
+    #     print(f"These are the paths i found: {self.all_paths}")
+
     def find_multiple_paths(self, start_zone: str, end_zone: str):
-        self.all_paths: Optional[list[list[str]]] = list()
-        ignored_zones: Optional[set[str]] = set()
-        while True:
-            new_path = self.weighted_shortest_path(start_zone, end_zone, ignored_zones)
-            if new_path == None:
-                break
-            for zone in new_path:
-                ignored_zones.add(zone)
-            self.all_paths.append(new_path)
+        """
+        1. Find the cheapest path with normal costs.
+        2. Double the cost of every zone on that path.
+        3. Find a second cheapest path (Dijkstra avoids the expensive first path).
+        4. Keep both paths (if the second one is different).
+        """
+        self.all_paths: list[list[str]] = []
+
+        # Step 1: first shortest path with normal costs
+        first_path = self.weighted_shortest_path(start_zone, end_zone)
+        if first_path is None:
+            print("These are the paths i found: []")
+            return
+        self.all_paths.append(first_path)
+
+        # Step 2: double the cost of zones on the first path
+        cost_overrides: dict[str, int] = {}
+        for zone_name in first_path:
+            cost_overrides[zone_name] = self.zone_cost(zone_name) * 2
+
+        # Step 3: find second path with inflated costs
+        second_path = self.weighted_shortest_path(start_zone, end_zone, cost_overrides)
+
+        # Only add if it's actually different from the first
+        if second_path is not None and second_path != first_path:
+            self.all_paths.append(second_path)
+
         print(f"These are the paths i found: {self.all_paths}")
 
 

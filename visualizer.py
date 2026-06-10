@@ -6,6 +6,14 @@ import tkinter as tk
 from parser import Parser
 from simulation import Simulation
 
+def safe_color(root, color, fallback="lightblue"):
+    """Return color if Tkinter recognises it, otherwise return fallback."""
+    try:
+        root.winfo_rgb(color)
+        return color
+    except tk.TclError:
+        return fallback
+
 def draw_graph(map_file):
     # 1. Parse the map
     parser = Parser()
@@ -85,7 +93,7 @@ def draw_graph(map_file):
     for zone in zones:
         x = scale_x(zone.x)
         y = scale_y(zone.y)
-        color = zone.color if zone.color else "lightblue"
+        color = safe_color(root, zone.color) if zone.color else "lightblue"
         if not zone.color:
             if zone.type == "restricted": color = "orange"
             elif zone.type == "priority": color = "lightgreen"

@@ -24,34 +24,53 @@ class Parser:
         try:
             with open(filepath, 'r') as file:
                 line_number: int = 0
+                nb_drones_found: bool = False
                 for line in file:
                     line_number += 1
-                    if line_number == 1 and not line.startswith("nb_drones:"):
-                        raise ValueError(f"Line {line_number}: First line must define nb_drones!")
                     if line.strip().startswith("#"):
                         continue
                     if not line.strip():
                         continue
+                    # Strip inline comments (everything after '#')
+                    if '#' in line:
+                        line = line.split('#')[0]
+                    if not line.strip():
+                        continue
+                    if not nb_drones_found and not line.startswith("nb_drones:"):
+                        raise ValueError(f"Line {line_number}: First non-comment line must define nb_drones!")
                     if line.startswith("nb_drones:"):
                         if self.graph.nb_drones > 0:
                             raise ValueError(f"Line {line_number}: 'nb_drones' cannot appear multiple times!")
+                        parts = line.split()
+                        if len(parts) != 2:
+                            raise ValueError(f"Line {line_number}: Expected 'nb_drones: <number>'")
                         try:
-                            nb = int(line.split()[1].strip())
+                            nb = int(parts[1].strip())
                         except ValueError:
                              raise ValueError(f"Line {line_number}: 'nb_drones' must be an integer")
                         if nb <= 0:
                             raise ValueError(f"Line {line_number}: 'nb_drones' should be a positive integer!")
                         self.graph.nb_drones = nb
+                        nb_drones_found = True
                     elif line.startswith("hub:") or line.startswith("start_hub:") or line.startswith("end_hub:"):
                         core_part = line.split('[')[0] if '[' in line else line
                         core = core_part.strip().split()
+                        if len(core) != 4:
+                            raise ValueError(f"Line {line_number}: Expected '<type> <name> <x> <y>'")
                         try:
                             x, y = int(core[2]), int(core[3])
                         except ValueError:
                             raise ValueError(f"Line {line_number}: Coordinates must be integers")
 
                         if '[' in line:
-                            token_str = line.strip().split('[')[1].replace("]", "")
+                            bracket_part = line.split('[', 1)[1]
+                            if '[' in bracket_part:
+                                raise ValueError(f"Line {line_number}: Nested or extra '[' not allowed in metadata")
+                            if ']' not in bracket_part:
+                                raise ValueError(f"Line {line_number}: Missing closing ']' for metadata")
+                            token_str, after_bracket = bracket_part.split(']', 1)
+                            if after_bracket.strip():
+                                raise ValueError(f"Line {line_number}: Unexpected content after metadata: '{after_bracket.strip()}'")
                             data = Parser.metadata_validator(token_str, "zone", line_number)
                             zone = Zone(core[1], x, y, data['zone'], data['color'], data['max_drones'])
                         else:
@@ -71,15 +90,22 @@ class Parser:
                             self.graph.end_hub = zone
 
                     elif line.startswith("connection:"):
+                        core_part = line.split('[')[0] if '[' in line else line
+                        core = core_part.strip().split()
+                        if len(core) != 2:
+                            raise ValueError(f"Line {line_number}: Expected 'connection: <zone1>-<zone2>', got {len(core)} tokens")
+                        zone1, zone2 = core[1].split('-')
                         if '[' in line:
-                            core_str, token_str = line.strip().split('[')
-                            core = core_str.split()
-                            zone1, zone2 = core[1].split('-')
-                            token_str = token_str.replace(']', "")
+                            bracket_part = line.split('[', 1)[1]
+                            if '[' in bracket_part:
+                                raise ValueError(f"Line {line_number}: Nested or extra '[' not allowed in metadata")
+                            if ']' not in bracket_part:
+                                raise ValueError(f"Line {line_number}: Missing closing ']' for metadata")
+                            token_str, after_bracket = bracket_part.split(']', 1)
+                            if after_bracket.strip():
+                                raise ValueError(f"Line {line_number}: Unexpected content after metadata: '{after_bracket.strip()}'")
                             data = Parser.metadata_validator(token_str, "connection", line_number)
                         else:
-                            core = line.split()
-                            zone1, zone2 = core[1].strip().split('-')
                             data = {"max_link_capacity": 1}
                         if zone1 == zone2:
                             raise ValueError(f"Line {line_number}: Self-connection is not allowed: {zone1}-{zone2}")
