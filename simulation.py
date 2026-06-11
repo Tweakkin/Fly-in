@@ -24,7 +24,6 @@ class Simulation:
             # Assign path by round-robin: drone 0 -> path 0, drone 1 -> path 1, drone 2 -> path 0, ...
             new_drone.path = self.all_paths[i % nb_paths]
             self.drones.append(new_drone)
-        print(f"Chosen paths: {[d.path for d in self.drones]}")
 
 
     def run(self):
@@ -32,149 +31,130 @@ class Simulation:
         Keep looping as long as there is at least one 
         drone that hasn't reached the end_hub
         """
+        """ Initialize the starting hub with all the drones at once """
         self.graph.start_hub.curr_drones: int = self.graph.nb_drones
         
-        # Loop through turns
+        """ Begin the main simulation loop, processing one turn per iteration """
         while True:
+            """ Increment the turn counter at the start of each round """
             self.turns += 1
+            """ Track all valid movements made during this specific turn """
             turn_movements: list[str] = []
+            """ Assume all drones have finished until proven otherwise """
             all_arrived: bool = True
 
-            # Mark what connections are being used
+            """ Keep track of how many drones are actively flying on each connection road right now """
             conn_usage: dict[Connection, int] = {}
 
-            # Sort drones so we can start from whoever is in front
+            """ Sort drones so those closest to the finish line get priority to move first """
             self.drones.sort(key=lambda d: d.path_index, reverse=True)
 
+            """ Evaluate each drone one by one to see if it can move this turn """
             for drone in self.drones:
                 
-                # For a drone that is joining a restricted zone
+                """ Handle drones that are currently mid-flight toward a restricted zone """
                 if drone.in_trans is not None:
+                    """ Tick down the remaining flight time """
                     drone.turns_remaining -= 1
+                    """ If flight time is zero, the drone lands in the restricted zone """
                     if drone.turns_remaining == 0:
                         drone.path_index += 1
                         drone.current_zone = self.graph.zone_dict[drone.path[drone.path_index]]
                         drone.in_trans = None
                         turn_movements.append(f"D{drone.drone_id}-{drone.current_zone.name}")
+                    """ Since this drone is still busy, not all drones have arrived """
                     all_arrived = False
                     continue
 
-                # OLD: Re-evaluate path every turn while drone is still at start hub.
-                # Once it moves to its first zone (path_index > 0), it's committed.
+                """ Dynamically assign the best path while waiting at the start hub """
                 # if not drone.path or drone.path_index == 0:
-                #     drone.path = min(self.all_paths, key=self.drones_in_path)
+                #     best_path = None
+                #     best_score = 999999999
+                    
+                #     for p in self.all_paths:
+                #         # Find out how many drones are actively flying on this path right now
+                #         active_traffic = sum(1 for d in self.drones if d.path == p and d.path_index > 0)
+                        
+                #         # Calculate the actual simulation cost of the path
+                #         path_cost = sum(self.graph.zone_cost(z) for z in p if z not in [self.graph.start_hub.name, self.graph.end_hub.name])
+                        
+                #         # Score is traffic congestion + actual path cost
+                #         score = active_traffic + len(p)
+                        
+                #         if score < best_score:
+                #             best_score = score
+                #             best_path = p
+                            
+                #     drone.path = best_path
 
-                # Check if the Drone has reached the end hub
+
+                """ Skip evaluating this drone if it is already sitting at the final destination """
                 if (drone.path_index == len(drone.path) - 1):
                     continue
                 
-                # There is a drone that hasn't reached the end hub.
+                """ We found a drone that hasn't finished, so keep the simulation running """
                 all_arrived = False
                 
-                # Mark our current zone, and our destination
+                """ Identify the drone's current location and where it wants to go next """
                 curr_zone = drone.path[drone.path_index]
                 next_zone = drone.path[drone.path_index + 1]
 
-                #  Find the exact Connection object between the current zone and the next zone
+                """ Search the graph to find the exact Connection object linking these two zones """
                 active_conn = None
                 for conn in self.graph.connection_dict[curr_zone]:
                     if conn.zone_1 == next_zone or conn.zone_2 == next_zone:
                         active_conn = conn
                         break
                 
-                # Check if the connection road is too crowded
+                """ Check if the connection road is already maxed out with other drones """
                 current_traffic = conn_usage.get(active_conn, 0)
                 if current_traffic >= active_conn.max_capacity:
                     continue
 
-                # Check if the destination zone is too crowded
+                """ Check if the destination zone is already full (except if it's the final end hub) """
                 curr_drones = self.graph.zone_dict[next_zone].curr_drones
                 max_drones = self.graph.zone_dict[next_zone].max_drones
                 if curr_drones >= max_drones and next_zone != self.graph.end_hub.name:
                     continue
                 
-                # If we survive both checks, we move
+                """ The drone survives both traffic checks, so we officially let it move """
                 conn_usage[active_conn] = current_traffic + 1
 
-                # The drone is leaving a zone, and start traveling to a restricted zone
+                """ Get the target zone object to check its type """
                 next_zone_object = self.graph.zone_dict[next_zone]
+                
+                """ Handle movement if the destination is a restricted zone """
                 if next_zone_object.type == "restricted":
+                    """ Remove the drone from its current zone immediately """
                     self.graph.zone_dict[drone.path[drone.path_index]].curr_drones -= 1
+                    """ Mark it as in-transit with a mandatory 1-turn wait time """
                     drone.in_trans = active_conn
                     drone.turns_remaining = 1
-                    # reserving the next zone even tho we didn't reach it
+                    """ Reserve the space in the destination zone so no one else steals it while we fly """
                     self.graph.zone_dict[next_zone].curr_drones += 1
+                    """ Log the movement onto the connection string for the terminal output """
                     conn_name = f"{active_conn.zone_1}-{active_conn.zone_2}"
                     turn_movements.append(f"D{drone.drone_id}-{conn_name}")
 
-                # The drone leaves a zone, and joins a normal zone
                 else:
+                    """ Handle standard movement for normal and priority zones """
+                    """ Remove the drone from its current zone """
                     self.graph.zone_dict[drone.path[drone.path_index]].curr_drones -= 1
+                    """ Immediately advance its path index and update its current zone """
                     drone.path_index += 1
                     drone.current_zone = self.graph.zone_dict[drone.path[drone.path_index]]
+                    """ Occupy space in the new zone """
                     self.graph.zone_dict[drone.path[drone.path_index]].curr_drones += 1
+                    """ Log the arrival at the zone for the terminal output """
                     turn_movements.append(f"D{drone.drone_id}-{drone.current_zone.name}")
 
+            """ If every single drone is at the end_hub, print final stats and stop the loop """
             if all_arrived == True:
                 print(" ".join(turn_movements))
                 print(f"Total turn {self.turns}")
                 print(f"All paths: {self.all_paths}")
                 break
             else:
+                """ Otherwise, just print the movements for this turn and continue to the next one """
                 print(" ".join(turn_movements))
-    
-    # def drones_in_path(self, path: list[str]) -> int:
-    #     num_using = 0
-    #     for drone in self.drones:
-    #         if (drone.path == path) and (len(drone.path) - 1 > drone.path_index):
-    #             num_using += 1
-    #     return (num_using * self.get_traffic_penalty(path)) + self.get_path_cost(path)
-
-    # def get_path_cost(self, path: list[str]) -> int:
-    #     cost = 0
-    #
-    #     for zone_name in path[1:]:
-    #         cost += self.graph.zone_cost(zone_name)
-    #     return cost
-
-    # def get_traffic_penalty(self, path: list[str]) -> float:
-    #     """
-    #     Returns a number that represents how much capacity pressure ONE drone puts on this path.
-    #
-    #     For every zone and every connection on the path, we calculate:
-    #         turn_cost / max_capacity  →  "what fraction of this segment does one drone consume?"
-    #
-    #     A zone that fits 1 drone scores higher than one that fits 4, because one drone
-    #     fills it completely and forces every other drone to wait.
-    #     Restricted zones use 2.0 in the numerator (they cost 2 turns), normal zones use 1.0.
-    #
-    #     We SUM across the whole path (not max) because every constrained segment
-    #     adds real waiting time independently. A path with 7 medium-hard segments
-    #     can be worse than a path with 1 very hard segment + 5 easy ones.
-    #
-    #     This result is then multiplied by the number of drones already on the path
-    #     in drones_in_path(), so paths that are both congested AND have low capacity
-    #     grow their score fast and repel new drones toward emptier routes.
-    #     """
-    #     total_penalty = 0.0
-    #
-    #     # 1. Accumulate penalty across all middle zones
-    #     for zone_name in path[1:-1]:
-    #         zone = self.graph.zone_dict[zone_name]
-    #
-    #         if zone.type == "restricted":
-    #             total_penalty += 2.0 / zone.max_drones
-    #         else:
-    #             total_penalty += 1.0 / zone.max_drones
-    #
-    #     for i in range(len(path) - 1):
-    #         curr_zone = path[i]
-    #         next_zone = path[i + 1]
-    #
-    #         for conn in self.graph.connection_dict[curr_zone]:
-    #             if conn.zone_1 == next_zone or conn.zone_2 == next_zone:
-    #                 total_penalty += 1.0 / conn.max_capacity
-    #                 break
-    #
-    #     return total_penalty
-
+                

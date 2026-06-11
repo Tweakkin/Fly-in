@@ -162,9 +162,12 @@ class Graph:
         if cost_overrides is None:
             cost_overrides = {}
         queue: list[tuple[int, list[str]]] = [(0, [start_zone])]
+        """ Initialize best known costs to reach each zone """
         best_costs: dict[str, int] = {start_zone: 0}
 
+        """ Loop while there are paths left to explore in the queue """
         while queue:
+            """ Sort the queue so we always process the lowest-cost path first """
             queue.sort(key=lambda item: item[0])
             curr_cost, curr_path = queue.pop(0)
             curr_zone = curr_path[-1]
@@ -172,28 +175,34 @@ class Graph:
             if curr_zone == end_zone:
                 return curr_path
 
+            """ Retrieve all connection lines touching the current zone """
             curr_connections = self.connection_dict.get(curr_zone, [])
 
+            """ Iterate through each connection to explore neighboring zones """
             for connec in curr_connections:
-                if connec.zone_1 == curr_zone:
+                if connec.zone_1 == curr_zone :
                     neighbor = connec.zone_2
                 else:
                     neighbor = connec.zone_1
 
+                """ Skip this neighbor if the zone is blocked """
                 neighbor_zone = self.zone_dict[neighbor]
                 if neighbor_zone.type == "blocked":
                     continue
 
-                # Use override cost if available, otherwise normal cost
+                """ Use the override cost if available, otherwise get the normal zone cost """
                 step_cost = cost_overrides.get(neighbor, self.zone_cost(neighbor))
+                """ Calculate the new total cost to reach this neighbor """
                 new_cost = curr_cost + step_cost
 
+                """ If this is a cheaper path to the neighbor, record it and add to queue """
                 if neighbor not in best_costs or new_cost < best_costs[neighbor]:
                     best_costs[neighbor] = new_cost
                     new_path = list(curr_path)
                     new_path.append(neighbor)
                     queue.append((new_cost, new_path))
 
+        """ Return None if no path to the destination could be found """
         return None
 
     # def find_multiple_paths(self, start_zone: str, end_zone: str):
@@ -224,7 +233,7 @@ class Graph:
             return
         self.all_paths.append(first_path)
 
-        # Step 2: double the cost of zones on the first path
+        # Step 2: penalize the cost of zones on the first path heavily
         cost_overrides: dict[str, int] = {}
         for zone_name in first_path:
             cost_overrides[zone_name] = self.zone_cost(zone_name) * 2
@@ -235,6 +244,16 @@ class Graph:
         # Only add if it's actually different from the first
         if second_path is not None and second_path != first_path:
             self.all_paths.append(second_path)
+            
+        # Step 4: penalize the second path and find a third
+        # if second_path is not None:
+        #     for zone_name in second_path:
+        #         current_cost = cost_overrides.get(zone_name, self.zone_cost(zone_name))
+        #         cost_overrides[zone_name] = current_cost * 2
+                
+            # third_path = self.weighted_shortest_path(start_zone, end_zone, cost_overrides)
+            # if third_path is not None and third_path not in self.all_paths:
+            #     self.all_paths.append(third_path)
 
         print(f"These are the paths i found: {self.all_paths}")
 
@@ -243,8 +262,12 @@ class Graph:
         zone = self.zone_dict[zone_name]
 
         if zone.type == "restricted":
-            return 2
-        return 1
+            return 2000
+        elif zone.type == "normal":
+            return 1000
+        elif zone.type == "priority":
+            return 999
+        return 0
 
 class Drone:
     """
