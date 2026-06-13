@@ -88,7 +88,7 @@ def run_simulation(graph):
         if not line:
             continue
         if any(line.startswith(p) for p in
-               ("Before", "After", "=", "running", "Total", "Chosen", "These")):
+               ("Before", "After", "=", "running", "Total", "Chosen", "These", "All")):
             continue
         turns.append(line)
     return turns

@@ -218,9 +218,4 @@ if __name__ == "__main__":
     print("===================================\n")
     print("running...")
     sim.run()
-
-    sim.graph.find_multiple_paths(sim.graph.start_hub.name, sim.graph.end_hub.name)
-
-
-
-    #print(parser.graph.bfs_shortest_path("base", "landing"))
+    

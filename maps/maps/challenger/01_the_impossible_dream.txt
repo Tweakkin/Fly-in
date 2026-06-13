@@ -1,3 +1,8 @@
+# CHALLENGER LEVEL: THE IMPOSSIBLE DREAM
+# WARNING: This map is designed to be extremely challenging and may not be solvable
+# by most algorithms. It's intended as a stress test and research challenge.
+# The goal is NOT to validate this map but to push algorithmic limits.
+
 nb_drones: 25
 
 # === LAYER 0: The Nightmare Begins ===

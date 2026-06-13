@@ -205,17 +205,6 @@ class Graph:
         """ Return None if no path to the destination could be found """
         return None
 
-    # def find_multiple_paths(self, start_zone: str, end_zone: str):
-    #     self.all_paths: Optional[list[list[str]]] = list()
-    #     ignored_zones: Optional[set[str]] = set()
-    #     while True:
-    #         new_path = self.weighted_shortest_path(start_zone, end_zone, ignored_zones)
-    #         if new_path == None:
-    #             break
-    #         for zone in new_path:
-    #             ignored_zones.add(zone)
-    #         self.all_paths.append(new_path)
-    #     print(f"These are the paths i found: {self.all_paths}")
 
     def find_multiple_paths(self, start_zone: str, end_zone: str):
         """
@@ -244,18 +233,7 @@ class Graph:
         # Only add if it's actually different from the first
         if second_path is not None and second_path != first_path:
             self.all_paths.append(second_path)
-            
-        # Step 4: penalize the second path and find a third
-        # if second_path is not None:
-        #     for zone_name in second_path:
-        #         current_cost = cost_overrides.get(zone_name, self.zone_cost(zone_name))
-        #         cost_overrides[zone_name] = current_cost * 2
-                
-            # third_path = self.weighted_shortest_path(start_zone, end_zone, cost_overrides)
-            # if third_path is not None and third_path not in self.all_paths:
-            #     self.all_paths.append(third_path)
 
-        print(f"These are the paths i found: {self.all_paths}")
 
 
     def zone_cost(self, zone_name: str) -> int:

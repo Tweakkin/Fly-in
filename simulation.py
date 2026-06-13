@@ -10,19 +10,14 @@ class Simulation:
         self.all_paths = self.graph.all_paths
         if self.all_paths is None:
             raise ValueError("No valid path exists between start and end!")
-    
-    # def create_drones(self):
-    #     for i in range(self.graph.nb_drones):
-    #         new_drone = Drone(i, self.graph.start_hub)
-    #         self.drones.append(new_drone)
+
 
     def create_drones(self):
         """Create drones and divide them equally across the available paths."""
         nb_paths = len(self.all_paths)
         for i in range(self.graph.nb_drones):
             new_drone = Drone(i, self.graph.start_hub)
-            # Assign path by round-robin: drone 0 -> path 0, drone 1 -> path 1, drone 2 -> path 0, ...
-            new_drone.path = self.all_paths[i % nb_paths]
+            new_drone.path = self.all_paths[(i + 1) % nb_paths]
             self.drones.append(new_drone)
 
 
@@ -36,8 +31,6 @@ class Simulation:
         
         """ Begin the main simulation loop, processing one turn per iteration """
         while True:
-            """ Increment the turn counter at the start of each round """
-            self.turns += 1
             """ Track all valid movements made during this specific turn """
             turn_movements: list[str] = []
             """ Assume all drones have finished until proven otherwise """
@@ -65,27 +58,6 @@ class Simulation:
                     """ Since this drone is still busy, not all drones have arrived """
                     all_arrived = False
                     continue
-
-                """ Dynamically assign the best path while waiting at the start hub """
-                # if not drone.path or drone.path_index == 0:
-                #     best_path = None
-                #     best_score = 999999999
-                    
-                #     for p in self.all_paths:
-                #         # Find out how many drones are actively flying on this path right now
-                #         active_traffic = sum(1 for d in self.drones if d.path == p and d.path_index > 0)
-                        
-                #         # Calculate the actual simulation cost of the path
-                #         path_cost = sum(self.graph.zone_cost(z) for z in p if z not in [self.graph.start_hub.name, self.graph.end_hub.name])
-                        
-                #         # Score is traffic congestion + actual path cost
-                #         score = active_traffic + len(p)
-                        
-                #         if score < best_score:
-                #             best_score = score
-                #             best_path = p
-                            
-                #     drone.path = best_path
 
 
                 """ Skip evaluating this drone if it is already sitting at the final destination """
@@ -150,11 +122,10 @@ class Simulation:
 
             """ If every single drone is at the end_hub, print final stats and stop the loop """
             if all_arrived == True:
-                print(" ".join(turn_movements))
                 print(f"Total turn {self.turns}")
-                print(f"All paths: {self.all_paths}")
                 break
             else:
-                """ Otherwise, just print the movements for this turn and continue to the next one """
+                """ Increment the turn counter since a valid round occurred """
+                self.turns += 1
+                """ Then, just print the movements for this turn and continue to the next one """
                 print(" ".join(turn_movements))
-                
