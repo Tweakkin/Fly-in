@@ -210,12 +210,7 @@ if __name__ == "__main__":
     parser.parse_file(sys.argv[1])
 
     sim = Simulation(parser.graph)
-    print(f"Before Creating Drones: {sim.drones}")
     sim.create_drones()
-
-    print(f"After Creating Drones: {sim.drones}")
-
-    print("===================================\n")
     print("running...")
     sim.run()
     

@@ -1,5 +1,41 @@
 from models import Graph, Drone, Connection
 from typing import Optional
+import sys
+
+# ANSI color codes for terminal output
+COLORS = {
+    "red": "\033[91m",
+    "green": "\033[92m",
+    "yellow": "\033[93m",
+    "blue": "\033[94m",
+    "magenta": "\033[95m",
+    "cyan": "\033[96m",
+    "orange": "\033[38;5;208m",
+    "gray": "\033[90m",
+    "white": "\033[97m",
+    "purple": "\033[38;5;129m",
+    "brown": "\033[38;5;130m",
+    "black": "\033[38;5;240m",
+    "crimson": "\033[38;5;196m",
+    "darkred": "\033[38;5;52m",
+    "gold": "\033[38;5;220m",
+    "lime": "\033[38;5;118m",
+    "maroon": "\033[38;5;88m",
+    "violet": "\033[38;5;135m",
+    "rainbow": "\033[38;5;199m",
+}
+RESET = "\033[0m"
+BOLD = "\033[1m"
+
+def colorize(text: str, color_name: Optional[str]) -> str:
+    """Wrap text in ANSI color codes if a color is provided."""
+    if not color_name:
+        return text
+    code = COLORS.get(color_name.lower(), "")
+    if code:
+        return f"{code}{text}{RESET}"
+    return text
+
 
 class Simulation:
     def __init__(self, graph: Graph):
@@ -9,7 +45,8 @@ class Simulation:
         graph.find_multiple_paths(graph.start_hub.name, graph.end_hub.name)
         self.all_paths = self.graph.all_paths
         if self.all_paths is None:
-            raise ValueError("No valid path exists between start and end!")
+            print("No valid path exists between start and end!")
+            sys.exit(1)
 
 
     def create_drones(self):
@@ -54,7 +91,7 @@ class Simulation:
                         drone.path_index += 1
                         drone.current_zone = self.graph.zone_dict[drone.path[drone.path_index]]
                         drone.in_trans = None
-                        turn_movements.append(f"D{drone.drone_id}-{drone.current_zone.name}")
+                        turn_movements.append(colorize(f"D{drone.drone_id}-{drone.current_zone.name}", drone.current_zone.color))
                     """ Since this drone is still busy, not all drones have arrived """
                     all_arrived = False
                     continue
@@ -106,7 +143,7 @@ class Simulation:
                     self.graph.zone_dict[next_zone].curr_drones += 1
                     """ Log the movement onto the connection string for the terminal output """
                     conn_name = f"{active_conn.zone_1}-{active_conn.zone_2}"
-                    turn_movements.append(f"D{drone.drone_id}-{conn_name}")
+                    turn_movements.append(colorize(f"D{drone.drone_id}-{conn_name}", next_zone_object.color))
 
                 else:
                     """ Handle standard movement for normal and priority zones """
@@ -118,14 +155,15 @@ class Simulation:
                     """ Occupy space in the new zone """
                     self.graph.zone_dict[drone.path[drone.path_index]].curr_drones += 1
                     """ Log the arrival at the zone for the terminal output """
-                    turn_movements.append(f"D{drone.drone_id}-{drone.current_zone.name}")
+                    turn_movements.append(colorize(f"D{drone.drone_id}-{drone.current_zone.name}", drone.current_zone.color))
 
             """ If every single drone is at the end_hub, print final stats and stop the loop """
             if all_arrived == True:
-                print(f"Total turn {self.turns}")
+                print(f"{BOLD}{colorize(f'Total turn {self.turns}', 'green')}{RESET}")
                 break
             else:
                 """ Increment the turn counter since a valid round occurred """
                 self.turns += 1
                 """ Then, just print the movements for this turn and continue to the next one """
-                print(" ".join(turn_movements))
+                turn_label = colorize(f"T{self.turns}", "cyan")
+                print(f"{turn_label} {' '.join(turn_movements)}")
