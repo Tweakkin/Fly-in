@@ -2,20 +2,118 @@ import sys
 import io
 import re
 import math
-import tkinter as tk
+import os
+import pygame
 from parser import Parser
 from simulation import Simulation
 
-def safe_color(root, color, fallback="lightblue"):
-    """Return color if Tkinter recognises it, otherwise return fallback."""
-    try:
-        root.winfo_rgb(color)
-        return color
-    except tk.TclError:
-        return fallback
+# ── constants ────────────────────────────────────────────────────────────────
+WIDTH, HEIGHT = 1400, 900
+PAD           = 80
+FPS           = 60
+DRONE_SPEED   = 4        # base pixels per frame
+SPEED_MIN     = 1
+SPEED_MAX     = 64
+NODE_RADIUS   = 28
+DRONE_RADIUS  = 12
+DRONE_SIZE    = 104      # pixel size to scale the drone sprite to
+SNAP_DIST     = 2        # snap to target when this close (pixels)
+
+WHITE  = (255, 255, 255)
+BLACK  = (0,   0,   0)
+GRAY   = (160, 160, 160)
+RED    = (220,  50,  50)
+GREEN  = (50,  180,  50)
+BLUE   = (50,  120, 220)
+ORANGE = (230, 140,  40)
+YELLOW = (230, 210,  50)
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def color_for_zone(zone):
+    if zone.type == "restricted": return ORANGE
+    if zone.type == "priority":   return YELLOW
+    if zone.type == "blocked":    return (80, 80, 80)
+    return BLUE
+
+
+def build_positions(graph):
+    """zone_name -> (screen_x, screen_y)"""
+    zones = list(graph.zone_dict.values())
+    min_x = min(z.x for z in zones);  max_x = max(z.x for z in zones)
+    min_y = min(z.y for z in zones);  max_y = max(z.y for z in zones)
+    rx = max(max_x - min_x, 1)
+    ry = max(max_y - min_y, 1)
+    pos = {}
+    for z in zones:
+        sx = int(PAD + (z.x - min_x) / rx * (WIDTH  - 2 * PAD))
+        sy = int(PAD + (z.y - min_y) / ry * (HEIGHT - 2 * PAD))
+        sy = HEIGHT - sy          # flip y
+        pos[z.name] = (sx, sy)
+    return pos
+
+
+def zone_screen_pos(location, drone_id, nb_drones, pos, graph):
+    """
+    Return the TARGET (x, y) for a drone given its location string.
+    Drones at the same zone are spread in a small circle to avoid overlap.
+    """
+    if '-' in location:
+        parts = location.split('-')
+        z1, z2 = parts[0], parts[1]
+        if z1 in pos and z2 in pos:
+            cx = (pos[z1][0] + pos[z2][0]) // 2
+            cy = (pos[z1][1] + pos[z2][1]) // 2
+        else:
+            cx, cy = pos[graph.start_hub.name]
+    else:
+        cx, cy = pos.get(location, pos[graph.start_hub.name])
+
+    angle  = (2 * math.pi * drone_id) / max(nb_drones, 1)
+    offset = 14
+    return cx + offset * math.cos(angle), cy + offset * math.sin(angle)
+
+
+def strip_ansi(text):
+    """Remove ANSI escape sequences from a string."""
+    return re.sub(r'\033\[[0-9;]*m', '', text)
+
+
+def run_simulation(graph):
+    sim = Simulation(graph)
+    sim.create_drones()
+    old_stdout = sys.stdout
+    buf = io.StringIO()
+    sys.stdout = buf
+    sim.run()
+    sys.stdout = old_stdout
+
+    turns = []
+    for line in strip_ansi(buf.getvalue()).strip().split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        if any(line.startswith(p) for p in
+               ("Before", "After", "=", "running", "Total", "Chosen", "These", "All")):
+            continue
+        turns.append(line)
+    return turns
+
+
+def parse_turn(turn_line):
+    moves = {}
+    matches = re.findall(r'<D(\d+)>-<\s*([^>]+)>|D(\d+)-([^\s]+)', turn_line)
+    for m in matches:
+        d_id = m[0] if m[0] else m[2]
+        dest = (m[1] if m[1] else m[3]).strip()
+        moves[d_id] = dest
+    return moves
+
+
+# ── main ──────────────────────────────────────────────────────────────────────
 
 def draw_graph(map_file):
-    # 1. Parse the map
     parser = Parser()
     parser.parse_file(map_file)
     graph = parser.graph
@@ -24,192 +122,158 @@ def draw_graph(map_file):
         print("Missing start or end hub.")
         return
 
-    # 2. Run simulation and capture output
-    sim = Simulation(graph)
-    sim.create_drones()
-    
-    # Capture standard output to get the turn movements
-    old_stdout = sys.stdout
-    captured_output = io.StringIO()
-    sys.stdout = captured_output
-    sim.run()
-    sys.stdout = old_stdout
-    
-    sim_output = captured_output.getvalue().strip().split('\n')
-    
-    # Filter only lines that look like turns (containing drone movements)
-    turns_data = []
-    for line in sim_output:
-        line = line.strip()
-        if not line or line.startswith("Before") or line.startswith("After") or line.startswith("=") or line.startswith("running") or line.startswith("Total") or line.startswith("Chosen"):
-            continue
-        turns_data.append(line)
+    turns_data = run_simulation(graph)
 
-    # 3. Initialize tkinter
-    root = tk.Tk()
-    root.title(f"Fly-in Animated Visualizer: {map_file}")
-    
-    canvas_width = 800
-    canvas_height = 600
-    canvas = tk.Canvas(root, width=canvas_width, height=canvas_height, bg="white")
-    canvas.pack(fill=tk.BOTH, expand=True)
+    pygame.init()
+    screen   = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption(f"Fly-in  –  {map_file}")
+    clock    = pygame.time.Clock()
+    font     = pygame.font.SysFont("monospace", 13)
+    font_big = pygame.font.SysFont("monospace", 18, bold=True)
 
-    # Find bounding box to scale coordinates
-    zones = list(graph.zone_dict.values())
-    min_x = min(z.x for z in zones)
-    max_x = max(z.x for z in zones)
-    min_y = min(z.y for z in zones)
-    max_y = max(z.y for z in zones)
+    # ── load assets ───────────────────────────────────────────────────────────
+    base_dir   = os.path.dirname(os.path.abspath(__file__))
+    background = pygame.image.load(os.path.join(base_dir, "background.jpg")).convert()
+    background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
-    pad = 60
-    range_x = max(max_x - min_x, 1)
-    range_y = max(max_y - min_y, 1)
+    drone_img_orig = pygame.image.load(os.path.join(base_dir, "drone.png")).convert_alpha()
+    drone_img      = pygame.transform.scale(drone_img_orig, (DRONE_SIZE, DRONE_SIZE))
 
-    def scale_x(x):
-        return pad + (x - min_x) * ((canvas_width - 2 * pad) / range_x)
-    
-    def scale_y(y):
-        return canvas_height - (pad + (y - min_y) * ((canvas_height - 2 * pad) / range_y))
+    pos = build_positions(graph)
 
-    # --- Draw Static Map ---
-    drawn_edges = set()
-    for zone_name, connections in graph.connection_dict.items():
-        for conn in connections:
-            z1 = conn.zone_1
-            z2 = conn.zone_2
-            edge = tuple(sorted([z1, z2]))
-            if edge not in drawn_edges:
-                drawn_edges.add(edge)
-                node1 = graph.zone_dict[z1]
-                node2 = graph.zone_dict[z2]
-                x1, y1 = scale_x(node1.x), scale_y(node1.y)
-                x2, y2 = scale_x(node2.x), scale_y(node2.y)
-                canvas.create_line(x1, y1, x2, y2, fill="gray", width=2)
-                if conn.max_capacity > 1:
-                    cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
-                    canvas.create_text(cx, cy - 10, text=f"cap:{conn.max_capacity}", fill="black")
+    # ── drone state ───────────────────────────────────────────────────────────
+    # current pixel positions (floats for smooth movement)
+    drone_pos    = {}
+    # target pixel positions
+    drone_target = {}
+    # logical location (zone name or connection string)
+    drone_loc    = {}
 
-    node_radius = 20
-    for zone in zones:
-        x = scale_x(zone.x)
-        y = scale_y(zone.y)
-        color = safe_color(root, zone.color) if zone.color else "lightblue"
-        if not zone.color:
-            if zone.type == "restricted": color = "orange"
-            elif zone.type == "priority": color = "lightgreen"
-            elif zone.type == "blocked": color = "black"
-
-        if zone.name == graph.start_hub.name:
-            canvas.create_rectangle(x - node_radius, y - node_radius, x + node_radius, y + node_radius, fill=color, outline="green", width=3)
-        elif zone.name == graph.end_hub.name:
-            canvas.create_rectangle(x - node_radius, y - node_radius, x + node_radius, y + node_radius, fill=color, outline="red", width=3)
-        else:
-            canvas.create_oval(x - node_radius, y - node_radius, x + node_radius, y + node_radius, fill=color, outline="black")
-        
-        label = f"{zone.name}\n(max:{zone.max_drones})"
-        if zone.type != "normal":
-            label += f"\n{zone.type}"
-        canvas.create_text(x, y + node_radius + 15, text=label, fill="black", justify=tk.CENTER)
-
-    # Store drones current locations (initially all at start_hub)
-    drone_locations = {}
     for i in range(graph.nb_drones):
-        drone_locations[str(i)] = graph.start_hub.name
+        sid = str(i)
+        tx, ty = zone_screen_pos(graph.start_hub.name, i, graph.nb_drones, pos, graph)
+        drone_pos[sid]    = [tx, ty]
+        drone_target[sid] = (tx, ty)
+        drone_loc[sid]    = graph.start_hub.name
 
-    turn_index = 0
-    drone_dots = {} # map drone_id to canvas oval item
-    drone_texts = {} # map drone_id to canvas text item
-    drone_actual_coords = {} # track exact (x,y) for smooth animation
+    turn_index  = 0
+    finished    = False
+    speed_mult  = 1          # speed multiplier (1x, 2x, 4x …)
 
-    turn_label = canvas.create_text(canvas_width/2, 20, text="Turn: 0", font=("Arial", 16, "bold"), fill="black")
+    # ── game loop ─────────────────────────────────────────────────────────────
+    while True:
+        clock.tick(FPS)
 
-    def get_coords(location_name, d_id_str):
-        """Returns (x, y) target for a drone including an offset to prevent total overlapping."""
-        if '-' in location_name:
-            z1, z2 = location_name.split('-')
-            n1 = graph.zone_dict.get(z1)
-            n2 = graph.zone_dict.get(z2)
-            if n1 and n2:
-                cx, cy = (scale_x(n1.x) + scale_x(n2.x))/2, (scale_y(n1.y) + scale_y(n2.y))/2
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit(); return
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit(); return
+                if event.key == pygame.K_UP:
+                    speed_mult = min(speed_mult * 2, SPEED_MAX)
+                if event.key == pygame.K_DOWN:
+                    speed_mult = max(speed_mult // 2, SPEED_MIN)
+
+        # ── move each drone toward its target ─────────────────────────────────
+        all_arrived = True
+        for sid in drone_pos:
+            cx, cy = drone_pos[sid]
+            tx, ty = drone_target[sid]
+            dx, dy = tx - cx, ty - cy
+            dist   = math.hypot(dx, dy)
+            if dist > SNAP_DIST:
+                move = DRONE_SPEED * speed_mult
+                if move >= dist:
+                    # would overshoot — snap directly
+                    drone_pos[sid][0] = tx
+                    drone_pos[sid][1] = ty
+                else:
+                    all_arrived = False
+                    step = move / dist
+                    drone_pos[sid][0] += dx * step
+                    drone_pos[sid][1] += dy * step
             else:
-                cx, cy = scale_x(graph.start_hub.x), scale_y(graph.start_hub.y)
-        else:
-            node = graph.zone_dict.get(location_name)
-            if node:
-                cx, cy = scale_x(node.x), scale_y(node.y)
+                # snap exactly
+                drone_pos[sid][0] = tx
+                drone_pos[sid][1] = ty
+
+        # ── advance to next turn only when all drones have arrived ────────────
+        if all_arrived and not finished:
+            if turn_index < len(turns_data):
+                moves = parse_turn(turns_data[turn_index])
+                drone_loc.update(moves)
+                # set new targets
+                for sid, loc in drone_loc.items():
+                    tx, ty = zone_screen_pos(loc, int(sid), graph.nb_drones, pos, graph)
+                    drone_target[sid] = (tx, ty)
+                turn_index += 1
             else:
-                cx, cy = scale_x(graph.start_hub.x), scale_y(graph.start_hub.y)
-                
-        # Offset drones in a circle around the zone center
-        offset_idx = int(d_id_str)
-        radius = 15
-        angle = (2 * math.pi * offset_idx) / max(graph.nb_drones, 1)
-        ox = radius * math.cos(angle)
-        oy = radius * math.sin(angle)
-        return cx + ox, cy + oy
+                finished = True
 
-    # Initialize drone visual items
-    for d_id, loc in drone_locations.items():
-        dx, dy = get_coords(loc, d_id)
-        drone_actual_coords[d_id] = (dx, dy)
-        drone_dots[d_id] = canvas.create_oval(dx-6, dy-6, dx+6, dy+6, fill="red", outline="black")
-        drone_texts[d_id] = canvas.create_text(dx, dy-10, text=f"D{d_id}", fill="darkred", font=("Arial", 8))
+        # ── draw ──────────────────────────────────────────────────────────────
+        screen.blit(background, (0, 0))
 
-    def animate_turn(frames_left, target_coords):
-        if frames_left <= 0:
-            # Snap to exact target to finish turn
-            for d_id, (tx, ty) in target_coords.items():
-                drone_actual_coords[d_id] = (tx, ty)
-                canvas.coords(drone_dots[d_id], tx-6, ty-6, tx+6, ty+6)
-                canvas.coords(drone_texts[d_id], tx, ty-10)
-            
-            # Wait half a second before starting next turn
-            root.after(500, next_turn)
-            return
+        # edges
+        drawn = set()
+        for connections in graph.connection_dict.values():
+            for conn in connections:
+                edge = tuple(sorted([conn.zone_1, conn.zone_2]))
+                if edge in drawn: continue
+                drawn.add(edge)
+                if conn.zone_1 in pos and conn.zone_2 in pos:
+                    pygame.draw.line(screen, GRAY, pos[conn.zone_1], pos[conn.zone_2], 2)
+                    if conn.max_capacity > 1:
+                        mx = (pos[conn.zone_1][0] + pos[conn.zone_2][0]) // 2
+                        my = (pos[conn.zone_1][1] + pos[conn.zone_2][1]) // 2
+                        lbl = font.render(f"cap:{conn.max_capacity}", True, BLACK)
+                        screen.blit(lbl, (mx, my - 14))
 
-        # Interpolate coordinates smoothly
-        for d_id, (tx, ty) in target_coords.items():
-            cx, cy = drone_actual_coords[d_id]
-            nx = cx + (tx - cx) * 0.15 # 15% closer each frame
-            ny = cy + (ty - cy) * 0.15
-            drone_actual_coords[d_id] = (nx, ny)
-            canvas.coords(drone_dots[d_id], nx-6, ny-6, nx+6, ny+6)
-            canvas.coords(drone_texts[d_id], nx, ny-10)
-            
-        root.after(50, animate_turn, frames_left - 1, target_coords)
+        # nodes
+        for zone in graph.zone_dict.values():
+            if zone.name not in pos: continue
+            x, y  = pos[zone.name]
+            color = color_for_zone(zone)
+            if zone.name == graph.start_hub.name:
+                bcol, bw = GREEN, 4
+            elif zone.name == graph.end_hub.name:
+                bcol, bw = RED, 4
+            else:
+                bcol, bw = BLACK, 2
+            pygame.draw.circle(screen, color, (x, y), NODE_RADIUS)
+            pygame.draw.circle(screen, bcol,  (x, y), NODE_RADIUS, bw)
+            lbl = font.render(zone.name, True, BLACK)
+            screen.blit(lbl, (x - lbl.get_width() // 2, y + NODE_RADIUS + 3))
 
-    def next_turn():
-        nonlocal turn_index
-        
-        if turn_index < len(turns_data):
-            turn_line = turns_data[turn_index]
-            canvas.itemconfig(turn_label, text=f"Turn: {turn_index + 1}\n{turn_line}")
-            
-            # Parse movements in this turn using regex to handle spaces inside brackets
-            matches = re.findall(r'<D(\d+)>-<\s*([^>]+)>|D(\d+)-([^\s]+)', turn_line)
-            for m in matches:
-                d_id_str = m[0] if m[0] else m[2]
-                dest = m[1] if m[1] else m[3]
-                drone_locations[d_id_str] = dest.strip()
-            
-            # Calculate new target coords for all drones
-            target_coords = {}
-            for d_id, loc in drone_locations.items():
-                target_coords[d_id] = get_coords(loc, d_id)
-                
-            turn_index += 1
-            # Start smooth animation for this turn (20 frames)
-            animate_turn(20, target_coords)
+        # drones
+        for sid in drone_pos:
+            x = int(drone_pos[sid][0])
+            y = int(drone_pos[sid][1])
+            # centre the sprite on the drone position
+            rect = drone_img.get_rect(center=(x, y))
+            screen.blit(drone_img, rect)
+            lbl = font.render(f"D{sid}", True, WHITE)
+            screen.blit(lbl, (x - lbl.get_width() // 2, y - DRONE_SIZE // 2 - 12))
+
+        # HUD
+        if finished:
+            hud = font_big.render(f"Done!  {turn_index} turns", True, GREEN)
         else:
-            canvas.itemconfig(turn_label, text=f"Simulation Finished! (Total Turns: {turn_index})")
+            hud = font_big.render(f"Turn {turn_index} / {len(turns_data)}", True, BLACK)
+        screen.blit(hud, (10, 10))
 
-    # Start animation loop after 1 second
-    root.after(1000, next_turn)
-    root.mainloop()
+        # Speed indicator
+        spd_text = font.render(f"Speed: {speed_mult}x  (↑/↓)", True, WHITE)
+        spd_bg = pygame.Surface((spd_text.get_width() + 12, spd_text.get_height() + 8), pygame.SRCALPHA)
+        spd_bg.fill((0, 0, 0, 160))
+        screen.blit(spd_bg, (8, HEIGHT - spd_text.get_height() - 16))
+        screen.blit(spd_text, (14, HEIGHT - spd_text.get_height() - 12))
+
+        pygame.display.flip()
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python visualizer.py <map_file.txt>")
+        print("Usage: python visualizer_pygame.py <map_file.txt>")
         sys.exit(1)
-    
     draw_graph(sys.argv[1])
