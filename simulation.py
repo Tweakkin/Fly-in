@@ -49,9 +49,9 @@ class Simulation:
             graph.start_hub.name, graph.end_hub.name
         )
         self.all_paths = self.graph.all_paths
-        if self.all_paths is None:
+        if len(self.all_paths) == 0:
             print("No valid path exists between start and end!")
-            sys.exit(1)
+            sys.exit()
 
     def create_drones(self) -> None:
         """Create drones and divide them equally
@@ -68,10 +68,19 @@ class Simulation:
         Keep looping as long as there is at least one
         drone that hasn't reached the end_hub
         """
-        assert self.graph.start_hub is not None
-        assert self.graph.end_hub is not None
+        if self.graph.start_hub is None:
+            print("Error: start_hub was not defined in the map file!")
+            sys.exit()
+        if self.graph.end_hub is None:
+            print("Error: end_hub was not defined in the map file!")
+            sys.exit()
+
         # Initialize the starting hub with all drones
-        self.graph.start_hub.curr_drones = self.graph.nb_drones
+        if self.graph.start_hub.max_drones < self.graph.nb_drones:
+            self.graph.start_hub.curr_drones = self.graph.nb_drones
+        else:
+            print("Error: nb_drones is higher than start_hub max drones!")
+            sys.exit()
 
         # Begin the main simulation loop
         while True:

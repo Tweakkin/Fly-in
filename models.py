@@ -222,7 +222,6 @@ class Graph:
             start_zone, end_zone
         )
         if first_path is None:
-            print("These are the paths i found: []")
             return
         self.all_paths.append(first_path)
 

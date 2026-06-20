@@ -146,6 +146,15 @@ class Parser:
                                     line_number,
                                 )
                             )
+                            if (line.startswith("end_hub:")
+                                    and "max_drones"
+                                    in token_str):
+                                raise ValueError(
+                                    f"Line {line_number}"
+                                    f": 'max_drones' is "
+                                    f"not allowed on "
+                                    f"end_hub"
+                                )
                             zone = Zone(
                                 core[1], x, y,
                                 data['zone'],
