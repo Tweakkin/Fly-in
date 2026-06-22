@@ -76,7 +76,7 @@ class Simulation:
             sys.exit()
 
         # Initialize the starting hub with all drones
-        if self.graph.start_hub.max_drones < self.graph.nb_drones:
+        if self.graph.start_hub.max_drones >= self.graph.nb_drones:
             self.graph.start_hub.curr_drones = self.graph.nb_drones
         else:
             print("Error: nb_drones is higher than start_hub max drones!")

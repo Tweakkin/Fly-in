@@ -5,7 +5,7 @@ import sys
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python3 main.py <map_file>")
-        sys.exit(1)
+        sys.exit()
 
     parser = Parser()
     parser.parse_file(sys.argv[1])

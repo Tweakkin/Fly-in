@@ -275,5 +275,5 @@ def draw_graph(map_file):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python visualizer_pygame.py <map_file.txt>")
-        sys.exit(1)
+        sys.exit()
     draw_graph(sys.argv[1])

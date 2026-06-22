@@ -29,15 +29,16 @@ class Parser:
                 nb_drones_found: bool = False
                 for line in file:
                     line_number += 1
+
+                    """ Handling empty lines and comments """
                     if line.strip().startswith("#"):
                         continue
                     if not line.strip():
                         continue
-                    # Strip inline comments (after '#')
                     if '#' in line:
                         line = line.split('#')[0]
-                    if not line.strip():
-                        continue
+
+                    """ Handling nb_drones, Zones, connections"""
                     if (not nb_drones_found
                             and not line.startswith(
                                 "nb_drones:")):
@@ -149,12 +150,12 @@ class Parser:
                             if (line.startswith("end_hub:")
                                     and "max_drones"
                                     in token_str):
-                                raise ValueError(
-                                    f"Line {line_number}"
-                                    f": 'max_drones' is "
-                                    f"not allowed on "
-                                    f"end_hub"
-                                )
+                                if data['max_drones'] < self.graph.nb_drones:
+                                    raise ValueError(
+                                        f"Line {line_number}"
+                                        f": 'max_drones' on "
+                                        f"end_hub is less than nb_drones"
+                                    )
                             zone = Zone(
                                 core[1], x, y,
                                 data['zone'],
@@ -326,10 +327,10 @@ class Parser:
                     )
         except FileNotFoundError:
             print(f"ERROR: {filepath} file not found")
-            sys.exit(1)
+            sys.exit()
         except ValueError as e:
             print(f"Parsing Error: {e}")
-            sys.exit(1)
+            sys.exit()
         except IndexError:
             print(
                 f"Parsing Error: Line {line_number}:"
@@ -341,10 +342,10 @@ class Parser:
                 f"    connection: <zone1>-<zone2>"
                 f" [metadata]"
             )
-            sys.exit(1)
+            sys.exit()
         except PermissionError:
             print("ERROR: Permission access denied.")
-            sys.exit(1)
+            sys.exit()
 
     @staticmethod
     def metadata_validator(
@@ -367,6 +368,13 @@ class Parser:
             "normal", "blocked",
             "restricted", "priority",
         ]
+        valid_colors: List[str] = [
+            "red", "green", "yellow", "blue", "magenta", "cyan",
+            "orange", "gray", "white", "purple", "brown", "black",
+            "crimson", "darkred", "gold", "lime", "maroon", "violet",
+            "rainbow",
+        ]
+        seen_keys: set[str] = set()
         if category == "zone":
             data_dict["zone"] = "normal"
             data_dict["color"] = None
@@ -374,6 +382,13 @@ class Parser:
             for data in tokens:
                 data = data.strip()
                 parts = data.split('=')
+                if parts[0] in seen_keys:
+                        raise ValueError(
+                            f"Line {line_number}: "
+                            f"Duplicate metadata key"
+                            f"'{parts[0]}'!"
+                        )
+                seen_keys.add(parts[0])
                 if (parts[0] == "zone"
                         and len(parts) == 2):
                     if parts[1] in valid_zones:
@@ -385,7 +400,13 @@ class Parser:
                         )
                 elif (parts[0] == "color"
                         and len(parts) == 2):
-                    data_dict["color"] = str(parts[1])
+                    if parts[1] in valid_colors:
+                        data_dict["color"] = str(parts[1])
+                    else:
+                        raise ValueError(
+                            f"Line {line_number}: "
+                            f"Invalid Color '{parts[1]}'!"
+                        )
                 elif (parts[0] == "max_drones"
                         and len(parts) == 2):
                     try:
@@ -418,6 +439,13 @@ class Parser:
             for data in tokens:
                 data = data.strip()
                 parts = data.split('=')
+                if parts[0] in seen_keys:
+                        raise ValueError(
+                            f"Line {line_number}: "
+                            f"Duplicate metadata key"
+                            f"'{parts[0]}'!"
+                        )
+                seen_keys.add(parts[0])
                 if (parts[0] == "max_link_capacity"
                         and len(parts) == 2):
                     try:
