@@ -383,11 +383,11 @@ class Parser:
                 data = data.strip()
                 parts = data.split('=')
                 if parts[0] in seen_keys:
-                        raise ValueError(
-                            f"Line {line_number}: "
-                            f"Duplicate metadata key"
-                            f"'{parts[0]}'!"
-                        )
+                    raise ValueError(
+                        f"Line {line_number}: "
+                        f"Duplicate metadata key"
+                        f"'{parts[0]}'!"
+                    )
                 seen_keys.add(parts[0])
                 if (parts[0] == "zone"
                         and len(parts) == 2):
@@ -440,11 +440,11 @@ class Parser:
                 data = data.strip()
                 parts = data.split('=')
                 if parts[0] in seen_keys:
-                        raise ValueError(
-                            f"Line {line_number}: "
-                            f"Duplicate metadata key"
-                            f"'{parts[0]}'!"
-                        )
+                    raise ValueError(
+                        f"Line {line_number}: "
+                        f"Duplicate metadata key"
+                        f"'{parts[0]}'!"
+                    )
                 seen_keys.add(parts[0])
                 if (parts[0] == "max_link_capacity"
                         and len(parts) == 2):
