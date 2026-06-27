@@ -163,9 +163,9 @@ class Parser:
                                 data['max_drones'],
                             )
                         else:
-                            zone = Zone(
-                                core[1], x, y
-                            )
+                                zone = Zone(
+                                    core[1], x, y
+                                )
                         zone_keys = (
                             self.graph.zone_dict.keys()
                         )
@@ -175,7 +175,15 @@ class Parser:
                                 f"Duplicate zone name: "
                                 f"{zone.name}"
                             )
-                        elif ((" " in zone.name)
+                        for existing in self.graph.zone_dict.values():
+                            if existing.x == x and existing.y == y:
+                                raise ValueError(
+                                    f"Line {line_number}: "
+                                    f"Zone '{zone.name}' has the same "
+                                    f"coordinates ({x}, {y}) as zone "
+                                    f"'{existing.name}'"
+                                )
+                        if ((" " in zone.name)
                                 or ('-' in zone.name)):
                             raise ValueError(
                                 f"Line {line_number}: "
@@ -195,6 +203,14 @@ class Parser:
                                     f"definition!"
                                 )
                             self.graph.start_hub = zone
+                            if (
+                                '[' not in line
+                                or 'max_drones'
+                                not in line
+                            ):
+                                zone.max_drones = (
+                                    self.graph.nb_drones
+                                )
                         elif line.startswith("end_hub:"):
                             if (self.graph.end_hub
                                     is not None):
@@ -326,6 +342,9 @@ class Parser:
                         f"one 'end_hub' must exist!"
                     )
         except FileNotFoundError:
+            print(f"ERROR: {filepath} file not found")
+            sys.exit()
+        except IsADirectoryError:
             print(f"ERROR: {filepath} file not found")
             sys.exit()
         except ValueError as e:

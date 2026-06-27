@@ -253,7 +253,7 @@ class Graph:
         elif zone.type == "normal":
             return 1000
         elif zone.type == "priority":
-            return 999
+            return 500
         return 0
 
 
