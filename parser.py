@@ -40,14 +40,14 @@ class Parser:
 
                     """ Handling nb_drones, Zones, connections"""
                     if (not nb_drones_found
-                            and not line.startswith(
+                            and not line.strip().startswith(
                                 "nb_drones:")):
                         raise ValueError(
                             f"Line {line_number}: "
                             f"First non-comment line "
                             f"must define nb_drones!"
                         )
-                    if line.startswith("nb_drones:"):
+                    if line.strip().startswith("nb_drones:"):
                         if self.graph.nb_drones > 0:
                             raise ValueError(
                                 f"Line {line_number}: "
@@ -77,10 +77,10 @@ class Parser:
                             )
                         self.graph.nb_drones = nb
                         nb_drones_found = True
-                    elif (line.startswith("hub:")
-                            or line.startswith(
+                    elif (line.strip().startswith("hub:")
+                            or line.strip().startswith(
                                 "start_hub:")
-                            or line.startswith(
+                            or line.strip().startswith(
                                 "end_hub:")):
                         core_part = (
                             line.split('[')[0]
@@ -92,7 +92,7 @@ class Parser:
                             raise ValueError(
                                 f"Line {line_number}: "
                                 f"Expected "
-                                f"'<type> <name> <x> <y>'"
+                                f"'<type>: <name> <x> <y>'"
                             )
                         try:
                             x, y = (
@@ -147,7 +147,7 @@ class Parser:
                                     line_number,
                                 )
                             )
-                            if (line.startswith("end_hub:")
+                            if (line.strip().startswith("end_hub:")
                                     and "max_drones"
                                     in token_str):
                                 if data['max_drones'] < self.graph.nb_drones:
@@ -163,9 +163,9 @@ class Parser:
                                 data['max_drones'],
                             )
                         else:
-                                zone = Zone(
-                                    core[1], x, y
-                                )
+                            zone = Zone(
+                                core[1], x, y
+                            )
                         zone_keys = (
                             self.graph.zone_dict.keys()
                         )
@@ -192,7 +192,7 @@ class Parser:
                                 f"spaces: {zone.name}"
                             )
                         self.graph.add_zone(zone)
-                        if line.startswith("start_hub:"):
+                        if line.strip().startswith("start_hub:"):
                             if (self.graph.start_hub
                                     is not None):
                                 raise ValueError(
@@ -211,7 +211,7 @@ class Parser:
                                 zone.max_drones = (
                                     self.graph.nb_drones
                                 )
-                        elif line.startswith("end_hub:"):
+                        elif line.strip().startswith("end_hub:"):
                             if (self.graph.end_hub
                                     is not None):
                                 raise ValueError(
@@ -222,8 +222,16 @@ class Parser:
                                     f"definition!"
                                 )
                             self.graph.end_hub = zone
+                            if (
+                                '[' not in line
+                                or 'max_drones'
+                                not in line
+                            ):
+                                zone.max_drones = (
+                                    self.graph.nb_drones
+                                )
 
-                    elif line.startswith("connection:"):
+                    elif line.strip().startswith("connection:"):
                         core_part = (
                             line.split('[')[0]
                             if '[' in line

@@ -6,7 +6,7 @@
 nb_drones: 25
 
 # === LAYER 0: The Nightmare Begins ===
-start_hub: start 0 0 [color=green max_drones=25]
+start_hub: start 0 0 [color=green]
 
 # Single-file entry gates (extreme bottleneck)
 hub: gate_hell1 2 0 [color=red max_drones=1]
@@ -25,7 +25,7 @@ hub: maze_dead_a 5 1 [color=black]
 hub: maze_trap_b1 2 -1 [color=purple]
 hub: maze_trap_b2 3 -1 [color=purple]
 hub: maze_trap_b3 4 -1 [color=purple]
-hub: maze_dead_b 5 -1 [color=black]
+   hub: maze_dead_b 5 -1 [color=black]
 
 hub: maze_loop1 2 2 [zone=restricted color=brown]
 hub: maze_loop2 3 2 [zone=restricted color=brown]
@@ -69,7 +69,7 @@ hub: conv_restricted2 14 2 [zone=restricted color=darkred max_drones=1]
 hub: conv_restricted3 15 2 [zone=restricted color=darkred max_drones=1]
 
 hub: conv_restricted4 13 0 [zone=restricted color=darkred max_drones=1]
-hub: conv_restricted5 14 0 [zone=restricted color=darkred max_drones=1]
+   hub: conv_restricted5 14 0 [zone=restricted color=darkred max_drones=1]
 hub: conv_restricted6 15 0 [zone=restricted color=darkred max_drones=1]
 
 hub: conv_restricted7 13 -2 [zone=restricted color=darkred max_drones=1]
@@ -85,7 +85,7 @@ hub: final_torture4 20 0 [color=crimson max_drones=1]
 hub: final_torture5 21 0 [color=crimson max_drones=1]
 
 # The ultimate goal
-end_hub: impossible_goal 23 0 [color=rainbow max_drones=25]
+end_hub: impossible_goal 23 0 [color=rainbow]
 
 # === CONNECTIONS: The Web of Suffering ===
 

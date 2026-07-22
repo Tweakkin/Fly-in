@@ -24,8 +24,7 @@ class Zone:
         self.max_drones: int = max_drones
         self.curr_drones: int = 0
 
-    def __repr__(self) -> str:
-        return f"{self.name}(type={self.type}, max={self.max_drones})"
+
 
 
 class Connection:
@@ -41,8 +40,7 @@ class Connection:
         self.zone_2: str = name2
         self.max_capacity: int = max_capacity
 
-    def __repr__(self) -> str:
-        return f"{self.zone_1}-{self.zone_2}(cap={self.max_capacity})"
+
 
 
 class Graph:
@@ -281,5 +279,4 @@ class Drone:
         self.path: list[str] = []
         self.path_index: int = 0
 
-    def __repr__(self) -> str:
-        return f"Drone({self.drone_id}, {self.current_zone})"
+
