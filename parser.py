@@ -395,12 +395,7 @@ class Parser:
             "normal", "blocked",
             "restricted", "priority",
         ]
-        valid_colors: List[str] = [
-            "red", "green", "yellow", "blue", "magenta", "cyan",
-            "orange", "gray", "white", "purple", "brown", "black",
-            "crimson", "darkred", "gold", "lime", "maroon", "violet",
-            "rainbow",
-        ]
+
         seen_keys: set[str] = set()
         if category == "zone":
             data_dict["zone"] = "normal"
@@ -427,13 +422,7 @@ class Parser:
                         )
                 elif (parts[0] == "color"
                         and len(parts) == 2):
-                    if parts[1] in valid_colors:
-                        data_dict["color"] = str(parts[1])
-                    else:
-                        raise ValueError(
-                            f"Line {line_number}: "
-                            f"Invalid Color '{parts[1]}'!"
-                        )
+                    data_dict["color"] = str(parts[1])
                 elif (parts[0] == "max_drones"
                         and len(parts) == 2):
                     try:

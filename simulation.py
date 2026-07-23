@@ -31,6 +31,15 @@ def colorize(text: str, color_name: Optional[str]) -> str:
     """Wrap text in ANSI color codes if a color is provided."""
     if not color_name:
         return text
+    if color_name.lower() == "rainbow":
+        rainbow_codes = [
+            "\033[91m", "\033[93m", "\033[92m",
+            "\033[96m", "\033[94m", "\033[95m",
+        ]
+        result = ""
+        for i, char in enumerate(text):
+            result += f"{rainbow_codes[i % len(rainbow_codes)]}{char}"
+        return result + RESET
     code = COLORS.get(color_name.lower(), "")
     if code:
         return f"{code}{text}{RESET}"
@@ -42,8 +51,12 @@ class Simulation:
         self.graph: Graph = graph
         self.drones: list[Drone] = []
         self.turns: int = 0
-        assert graph.start_hub is not None
-        assert graph.end_hub is not None
+        if graph.start_hub is None:
+            print("Error: start_hub was not defined in the map file!")
+            sys.exit()
+        if graph.end_hub is None:
+            print("Error: end_hub was not defined in the map file!")
+            sys.exit()
         graph.find_multiple_paths(
             graph.start_hub.name, graph.end_hub.name
         )
@@ -57,9 +70,8 @@ class Simulation:
         across the available paths."""
         nb_paths = len(self.all_paths)
         for i in range(self.graph.nb_drones):
-            assert self.graph.start_hub is not None
             new_drone = Drone(i, self.graph.start_hub)
-            new_drone.path = self.all_paths[(i + 1) % nb_paths]
+            new_drone.path = self.all_paths[i % nb_paths]
             self.drones.append(new_drone)
 
     def run(self) -> None:
@@ -67,12 +79,6 @@ class Simulation:
         Keep looping as long as there is at least one
         drone that hasn't reached the end_hub
         """
-        if self.graph.start_hub is None:
-            print("Error: start_hub was not defined in the map file!")
-            sys.exit()
-        if self.graph.end_hub is None:
-            print("Error: end_hub was not defined in the map file!")
-            sys.exit()
 
         """ Initialize the starting hub with all drones """
         if self.graph.start_hub.max_drones >= self.graph.nb_drones:

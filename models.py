@@ -78,56 +78,6 @@ class Graph:
             connection_object.zone_2
         ].append(connection_object)
 
-    def bfs_shortest_path(
-        self, start_zone: str, end_zone: str
-    ) -> Optional[list[str]]:
-        """
-        Finds the shortest path between two zones using
-        Breadth-First Search.
-        How it works:
-        1. Starts with a queue containing one path: just the
-           start_zone.
-        2. Pulls the first path from the queue and checks its
-           last zone.
-        3. If that zone is the destination, returns the path
-           immediately.
-        4. Otherwise, looks up all connections from that zone,
-           finds each neighbor, and creates a new path
-           (a copy + the neighbor) for each unvisited neighbor.
-           Adds those new paths to the back of the queue.
-        5. Repeats until the destination is found or the queue
-           is empty.
-        Returns the path as a list of zone name strings, or
-        None if no path exists.
-        """
-        queue: list[list[str]] = [[start_zone]]
-        visited: set[str] = {start_zone}
-
-        while queue:
-            curr_path = queue.pop(0)
-            curr_zone = curr_path[-1]
-            if curr_zone == end_zone:
-                return curr_path
-            curr_connections = self.connection_dict.get(
-                curr_zone, []
-            )
-            for connec in curr_connections:
-                if connec.zone_1 == curr_zone:
-                    neighbor = connec.zone_2
-                else:
-                    neighbor = connec.zone_1
-
-                neighbor_zone = self.zone_dict[neighbor]
-                if neighbor_zone.type == "blocked":
-                    continue
-
-                if neighbor not in visited:
-                    visited.add(neighbor)
-                    new_path = list(curr_path)
-                    new_path.append(neighbor)
-                    queue.append(new_path)
-        return None
-
     def weighted_shortest_path(
         self,
         start_zone: str,
@@ -215,7 +165,7 @@ class Graph:
         """
         self.all_paths = []
 
-        # Step 1: first shortest path with normal costs
+        # first shortest path with normal costs
         first_path = self.weighted_shortest_path(
             start_zone, end_zone
         )
@@ -223,7 +173,7 @@ class Graph:
             return
         self.all_paths.append(first_path)
 
-        # Step 2: penalize the cost of zones on the
+        # penalize the cost of zones on the
         # first path heavily
         cost_overrides: dict[str, int] = {}
         for zone_name in first_path:
@@ -231,7 +181,7 @@ class Graph:
                 self.zone_cost(zone_name) * 2
             )
 
-        # Step 3: find second path with inflated costs
+        # find second path with inflated costs
         second_path = self.weighted_shortest_path(
             start_zone, end_zone, cost_overrides
         )
