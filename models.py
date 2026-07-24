@@ -25,8 +25,6 @@ class Zone:
         self.curr_drones: int = 0
 
 
-
-
 class Connection:
     """
     Represents a road between two Zones.
@@ -39,8 +37,6 @@ class Connection:
         self.zone_1: str = name1
         self.zone_2: str = name2
         self.max_capacity: int = max_capacity
-
-
 
 
 class Graph:
@@ -228,5 +224,3 @@ class Drone:
         self.turns_remaining: int = turns_remaining
         self.path: list[str] = []
         self.path_index: int = 0
-
-

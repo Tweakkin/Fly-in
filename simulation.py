@@ -1,4 +1,4 @@
-from models import Graph, Drone, Connection
+from models import Graph, Drone, Connection, Zone
 from typing import Optional
 import sys
 
@@ -21,7 +21,6 @@ COLORS = {
     "lime": "\033[38;5;118m",
     "maroon": "\033[38;5;88m",
     "violet": "\033[38;5;135m",
-    "rainbow": "\033[38;5;199m",
 }
 RESET = "\033[0m"
 BOLD = "\033[1m"
@@ -57,8 +56,10 @@ class Simulation:
         if graph.end_hub is None:
             print("Error: end_hub was not defined in the map file!")
             sys.exit()
+        self.start_hub: Zone = graph.start_hub
+        self.end_hub: Zone = graph.end_hub
         graph.find_multiple_paths(
-            graph.start_hub.name, graph.end_hub.name
+            self.start_hub.name, self.end_hub.name
         )
         self.all_paths = self.graph.all_paths
         if len(self.all_paths) == 0:
@@ -70,7 +71,7 @@ class Simulation:
         across the available paths."""
         nb_paths = len(self.all_paths)
         for i in range(self.graph.nb_drones):
-            new_drone = Drone(i, self.graph.start_hub)
+            new_drone = Drone(i, self.start_hub)
             new_drone.path = self.all_paths[i % nb_paths]
             self.drones.append(new_drone)
 
@@ -81,8 +82,8 @@ class Simulation:
         """
 
         """ Initialize the starting hub with all drones """
-        if self.graph.start_hub.max_drones >= self.graph.nb_drones:
-            self.graph.start_hub.curr_drones = self.graph.nb_drones
+        if self.start_hub.max_drones >= self.graph.nb_drones:
+            self.start_hub.curr_drones = self.graph.nb_drones
         else:
             print("Error: nb_drones is higher than start_hub max drones!")
             sys.exit()

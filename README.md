@@ -1,23 +1,16 @@
 *This project has been created as part of the 42 curriculum by yboukhmi.*
 
-# Fly-in — Drone Fleet Routing Simulator
+# Fly-in
 
 ## Description
 
-Fly-in is a drone fleet simulation system that efficiently routes multiple drones from a central start zone to a target end zone across a network of connected zones. The project reads a map file describing zones, connections, and constraints, then computes optimized paths and simulates the turn-by-turn movement of all drones while respecting:
-
-- **Zone occupancy limits** (`max_drones`)
-- **Connection capacity constraints** (`max_link_capacity`)
-- **Zone types** with different movement costs: `normal` (1 turn), `restricted` (2 turns), `priority` (1 turn, preferred), and `blocked` (inaccessible)
-- **Simultaneous drone movement** with conflict-free scheduling
-
-The goal is to deliver all drones in the fewest possible simulation turns.
+Fly-in is a drone traffic simulation written in Python. The goal is to move a group of drones from a start hub to an end hub across a network of zones and connections, while respecting capacity limits on both zones and connections. The program reads a map file that defines the layout, then simulates the movement turn by turn until all drones arrive at the destination.
 
 ## Instructions
 
-### Prerequisites
+### Requirements
 
-- Python 3.10 or later
+- Python 3.10 or higher
 
 ### Installation
 
@@ -25,38 +18,18 @@ The goal is to deliver all drones in the fewest possible simulation turns.
 make install
 ```
 
-### Running the Simulation
+This installs `flake8` and `mypy` for linting and type checking.
+
+### Running
 
 ```bash
-make run MAP=<path_to_map_file>
+make run MAP=path/to/your/map.txt
 ```
 
-Or manually:
+Or directly:
 
 ```bash
-python3 main.py <path_to_map_file>
-```
-
-**Example:**
-
-```bash
-python3 main.py maps/maps/easy/01_linear_path.txt
-```
-
-**Output format** — each line represents one simulation turn:
-
-```
-D0-waypoint1
-D0-waypoint2 D1-waypoint1
-D0-goal D1-waypoint2
-D1-goal
-Total turn 4
-```
-
-### Debug Mode
-
-```bash
-make debug MAP=<path_to_map_file>
+python3 main.py path/to/your/map.txt
 ```
 
 ### Linting
@@ -71,81 +44,67 @@ make lint
 make clean
 ```
 
-## Algorithm Choices and Implementation Strategy
+## Map File Format
 
-### Architecture
+A map file is a plain text file that defines the simulation layout. Lines starting with `#` are comments. The file must contain:
 
-The project follows an object-oriented design with clear separation of concerns:
+- `nb_drones: <number>` — must be the first non-comment line
+- `start_hub: <name> <x> <y>` — the starting zone for all drones
+- `end_hub: <name> <x> <y>` — the destination zone
+- `hub: <name> <x> <y>` — intermediate zones
+- `connection: <zone1>-<zone2>` — a link between two zones
 
-| Module | Responsibility |
-|--------|---------------|
-| `models.py` | Data structures — `Zone`, `Connection`, `Graph`, `Drone` classes |
-| `parser.py` | Input parsing with full validation and error reporting |
-| `simulation.py` | Turn-based simulation engine with conflict resolution |
+Zones and connections can have optional metadata in brackets:
 
-### Pathfinding
+```
+hub: myzone 3 4 [zone=restricted color=red max_drones=5]
+connection: zoneA-zoneB [max_link_capacity=3]
+```
 
-The routing algorithm uses a **two-phase approach**:
+Zone types: `normal`, `blocked`, `restricted`, `priority`.
 
-1. **Weighted Dijkstra** — Finds the shortest path from start to end, using zone-type-based costs:
-   - `normal`: cost 1000
-   - `priority`: cost 999 (slightly cheaper to encourage usage)
-   - `restricted`: cost 2000 (discouraged due to 2-turn movement cost)
-   - `blocked`: skipped entirely
+## Algorithm Choices
 
-2. **Penalty-based path diversification** — After finding the first path, all zones on that path have their costs doubled. A second Dijkstra run then naturally finds an alternative path that avoids the first one. This distributes drones across multiple routes, reducing bottlenecks.
+### Pathfinding — Weighted Dijkstra
 
-Drones are assigned to paths in a round-robin fashion across the discovered routes.
+The program uses Dijkstra's shortest-path algorithm to find routes from start to end. Each zone type has a different cost:
 
-### Simulation Engine
+- **priority** zones cost 500 (preferred)
+- **normal** zones cost 1000
+- **restricted** zones cost 2000 (avoided when possible)
+- **blocked** zones are skipped entirely
 
-The simulation processes one turn at a time:
+### Multiple Path Discovery
 
-- **Priority scheduling**: Drones are sorted by `path_index` (descending), so drones closest to the destination move first. This creates a cascading effect where a frontmost drone vacates a zone, allowing the one behind it to advance in the same turn.
-- **Connection capacity tracking**: A per-turn `conn_usage` dictionary ensures no connection exceeds its `max_link_capacity`.
-- **Zone capacity enforcement**: Before moving into a zone, the simulation checks `curr_drones < max_drones` (with an exception for the end zone, which has unlimited capacity).
-- **Restricted zone handling**: When a drone targets a restricted zone, it enters the connection for 1 turn, then arrives the next turn. The destination space is reserved immediately to prevent capacity violations, since drones on connections **must** arrive and cannot wait.
+To spread drones across different routes, the program finds a second path by doubling the cost of every zone on the first path. This pushes Dijkstra to pick a different route. If the second path is different from the first, both are kept. Drones are then split evenly across all available paths.
 
-### Parser
+### Turn-by-Turn Simulation
 
-The parser performs strict validation on every line:
+Each turn, drones are sorted by progress (closest to finish moves first). A drone can only move if:
 
-- `nb_drones` must be the first non-comment line and a positive integer
-- Exactly one `start_hub` and one `end_hub` must exist
-- Zone names must be unique and cannot contain dashes or spaces
-- Connections must reference previously defined zones
-- Duplicate and self-connections are rejected
-- All metadata keys and values are validated
-- Any error stops execution with a clear message indicating the line number and cause
+1. The connection it wants to use is not at full capacity
+2. The destination zone is not at full capacity
+
+When entering a **restricted** zone, the drone spends one turn in transit on the connection before arriving. This models a delay for restricted areas.
 
 ## Visual Representation
 
-The simulation provides visual feedback through **colored terminal output**:
+The simulation uses ANSI color codes to make the terminal output easy to read:
 
-- **Turn labels** are color-coded for easy scanning
-- **Drone movements** are displayed with zone-specific colors matching their `color` metadata
-- **Final result** (total turns) is highlighted in bold green
-- The turn-by-turn format makes it easy to trace each drone's journey and identify bottlenecks or waiting patterns
+- Each turn is printed on one line, showing which drones moved and where
+- Turn labels are colored in **cyan**
+- Each drone movement is colored based on the destination zone's color (set in the map file)
+- A **rainbow** color option cycles through multiple colors character by character
+- The final total turns message is shown in **green** and **bold**
 
-This terminal-based approach provides clear, immediate feedback without requiring any additional dependencies.
+This makes it simple to follow each drone's progress at a glance and quickly spot bottlenecks or unusual movements.
 
 ## Resources
 
-### References
-
-- [Dijkstra's Algorithm — Wikipedia](https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm) — Foundation for the weighted shortest path implementation
-- [Breadth-First Search — Wikipedia](https://en.wikipedia.org/wiki/Breadth-first_search) — Used for basic shortest path discovery
-- [Python `typing` module documentation](https://docs.python.org/3/library/typing.html) — Type hints and static typing
-- [Pygame documentation](https://www.pygame.org/docs/) — Graphical visualizer implementation
-- [Tkinter documentation](https://docs.python.org/3/library/tkinter.html) — Lightweight visualizer implementation
-- [PEP 257 — Docstring Conventions](https://peps.python.org/pep-0257/) — Documentation style guide
+- [Dijkstra's Algorithm — Wikipedia](https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm)
+- [ANSI Escape Codes — Wikipedia](https://en.wikipedia.org/wiki/ANSI_escape_code)
+- [Python Documentation](https://docs.python.org/3/)
 
 ### AI Usage
 
-AI tools were used during development for the following tasks:
-
-- **Code review and debugging**: Identifying edge cases in parser validation and simulation logic
-- **Documentation**: Assisting with docstring writing and README structure
-- **Refactoring suggestions**: Improving code readability and type safety
-
-All AI-generated content was reviewed, understood, and validated before integration. The core algorithm design, pathfinding strategy, and simulation logic were developed independently.
+AI was used as a coding assistant for debugging type errors, writing this README, and reviewing code structure. All algorithm logic, parsing, and simulation code was written manually.
